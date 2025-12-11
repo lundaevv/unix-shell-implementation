@@ -6,7 +6,7 @@
 /*   By: vlundaev <vlundaev@student.hive.fi>        +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/12/02 18:20:30 by vlundaev          #+#    #+#             */
-/*   Updated: 2025/12/03 18:48:21 by vlundaev         ###   ########.fr       */
+/*   Updated: 2025/12/11 17:15:10 by vlundaev         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -26,7 +26,7 @@ t_token	*lexer_tokenize(const char *line)
 
 	tokens = NULL;
 	i = 0;
-	while (line[i] && line[i] != '\0')
+	while (line[i] != '\0')
 	{
 		while (line[i] != '\0' && is_space(line[i]))
 			i++;

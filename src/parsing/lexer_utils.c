@@ -6,7 +6,7 @@
 /*   By: vlundaev <vlundaev@student.hive.fi>        +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/12/03 16:56:17 by vlundaev          #+#    #+#             */
-/*   Updated: 2025/12/04 20:19:39 by vlundaev         ###   ########.fr       */
+/*   Updated: 2025/12/11 19:55:39 by vlundaev         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -80,27 +80,4 @@ void	token_list_clear(t_token **list)
 		cur = next;
 	}
 	*list = NULL;
-}
-
-/*
-** Debug print of tokens
-*/
-void	token_list_print(t_token *list)
-{
-	while (list)
-	{
-		if (list->type == TOKEN_WORD)
-			ft_printf("WORD					: '%s'\n", list->value);
-		else if (list->type == TOKEN_PIPE)
-			ft_printf("PIPE					: '%s'\n", list->value);
-		else if (list->type == TOKEN_REDIR_IN)
-			ft_printf("REDIR_IN				: '%s'\n", list->value);
-		else if (list->type == TOKEN_REDIR_OUT)
-			ft_printf("REDIR_OUT				: '%s'\n", list->value);
-		else if (list->type == TOKEN_REDIR_APPEND)
-			ft_printf("REDIR_APPEND				: '%s'\n", list->value);
-		else if (list->type == TOKEN_HEREDOC)
-			ft_printf("HEREDOC					: '%s'\n", list->value);
-		list = list->next;
-	}
 }

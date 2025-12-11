@@ -6,28 +6,11 @@
 /*   By: vlundaev <vlundaev@student.hive.fi>        +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/12/02 17:12:40 by vlundaev          #+#    #+#             */
-/*   Updated: 2025/12/05 15:56:38 by vlundaev         ###   ########.fr       */
+/*   Updated: 2025/12/11 19:35:46 by vlundaev         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "minishell.h"
-
-/*
-* Return 1 if the line should be treated as an "exit" command.
-* For now we handle:
-*   - "exit"
-*   - "exit" followed by a space and anything else.
-*/
-static int	is_exit_command(const char *line)
-{
-	if (!line || line[0] == '\0')
-		return (0);
-	if (ft_strncmp(line, "exit", 4) != 0)
-		return (0);
-	if (line[4] != '\0' && line[4] != ' ')
-		return (0);
-	return (1);
-}
 
 /*
 ** Readline:
@@ -51,34 +34,32 @@ static char	*read_line_with_prompt(void)
 
 /*
 ** Process a single input line:
-** - history
-** - "exit" command
-** - debug print
-** - tokenize, expand, debug tokens
+** - history + exit
+** - lexer
+** - expander
+** - parser
+** - debug
 */
 static int	process_line(t_shell *shell, char *line)
 {
-	t_token	*tokens;
+	t_token		*tokens;
+	t_pipeline	*p;
 
-	if (line[0] != '\0')
-		add_history(line);
-	if (is_exit_command(line)) // exit handling - should be in exec??
-	{
-		free(line);
-		shell->exit_status = 0;
+	if (handle_history_and_exit(shell, line))
 		return (1);
-	}
-	ft_putstr_fd("You typed: ", STDOUT_FILENO); // debug
-	ft_putendl_fd(line, STDOUT_FILENO); // debug
 	tokens = lexer_tokenize(line);
 	if (!tokens)
 	{
 		free(line);
 		return (0);
 	}
-	expand_tokens(tokens, shell->env, shell->exit_status);
-	token_list_print(tokens); // debug
-	token_list_clear(&tokens); // free
+	if (expand_tokens(tokens, shell->env, shell->exit_status) != 0)
+		return (handle_expand_error(&tokens, line));
+	p = parse_pipeline(tokens);
+	ms_debug_state(shell, line, tokens, p);
+	if (p)
+		free_pipeline(p);
+	token_list_clear(&tokens);
 	free(line);
 	return (0);
 }
@@ -92,7 +73,7 @@ void	shell_loop(t_shell *shell)
 {
 	char	*line;
 
-	line = NULL;
+	// line = NULL;
 	while (1)
 	{
 		line = read_line_with_prompt();

@@ -6,7 +6,7 @@
 /*   By: vlundaev <vlundaev@student.hive.fi>        +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/12/04 14:08:14 by vlundaev          #+#    #+#             */
-/*   Updated: 2025/12/05 15:56:42 by vlundaev         ###   ########.fr       */
+/*   Updated: 2025/12/11 17:15:05 by vlundaev         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -15,16 +15,16 @@
 /*
 ** Count how many times "$?" appears in the string.
 */
-static int	count_status_markers(const char *s)
+static int	count_status_markers(const char *value)
 {
 	int	i;
 	int	count;
 
 	i = 0;
 	count = 0;
-	while (s[i] != '\0')
+	while (value[i] != '\0')
 	{
-		if (s[i] == '$' && s[i + 1] == '?')
+		if (value[i] == '$' && value[i + 1] == '?')
 			count++;
 		i++;
 	}
@@ -54,15 +54,15 @@ static void	copy_status_str(char *dst, int *j, const char *status_str)
 static char	*replace_status_markers(
 	const char *src, const char *status_str, int count)
 {
-	int		len_src;
-	int		len_status;
+	int		src_len;
+	int		status_len;
 	char	*dst;
 	int		i;
 	int		j;
 
-	len_src = ft_strlen(src);
-	len_status = ft_strlen(status_str);
-	dst = (char *)malloc(len_src + count * (len_status - 2) + 1);
+	src_len = ft_strlen(src);
+	status_len = ft_strlen(status_str);
+	dst = (char *)malloc(src_len + count * (status_len - 2) + 1);
 	if (!dst)
 		return (NULL);
 	i = 0;
@@ -85,44 +85,48 @@ static char	*replace_status_markers(
 ** Expand "$?" inside a single token value.
 ** Returns a newly allocated string, or NULL on error.
 */
-static char	*expand_status_in_value(const char *value, int status)
+static char	*expand_status_in_value(const char *value, int last_exit_status)
 {
 	char	*status_str;
-	int		count;
-	char	*result;
+	int		status_count;
+	char	*expanded_value;
 
-	status_str = ft_itoa(status);
+	status_str = ft_itoa(last_exit_status);
 	if (!status_str)
 		return (NULL);
-	count = count_status_markers(value);
-	if (count == 0)
+	status_count = count_status_markers(value);
+	if (status_count == 0)
 	{
 		free(status_str);
-		return (ft_strdup(value)); // protect?
+		return (ft_strdup(value)); // protect??????
 	}
-	result = replace_status_markers(value, status_str, count);
+	expanded_value = replace_status_markers(value, status_str, status_count);
 	free(status_str);
-	return (result);
+	return (expanded_value);
 }
 
 /*
 ** Expand all tokens before parsing.
-** For now: only "$?" in WORD tokens.
+** "$?" and VAR in WORD tokens.
 */
-int	expand_tokens(t_token *list, char **envp, int last_status)
+int	expand_tokens(t_token *list, char **envp, int last_exit_status)
 {
-	char	*new_val;
+	char	*tmp1;
+	char	*tmp2;
 
-	(void)envp;
 	while (list)
 	{
 		if (list->type == TOKEN_WORD)
 		{
-			new_val = expand_status_in_value(list->value, last_status);
-			if (!new_val)
+			tmp1 = expand_status_in_value(list->value, last_exit_status);
+			if (!tmp1)
+				return (1);
+			tmp2 = expand_variables_in_value(tmp1, envp);
+			free(tmp1);
+			if (!tmp2)
 				return (1);
 			free(list->value);
-			list->value = new_val;
+			list->value = tmp2;
 		}
 		list = list->next;
 	}
