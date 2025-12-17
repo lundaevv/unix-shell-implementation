@@ -6,7 +6,7 @@
 #    By: lundaevv <lundaevv@student.42.fr>          +#+  +:+       +#+         #
 #                                                 +#+#+#+#+#+   +#+            #
 #    Created: 2025/10/08 11:55:51 by vlundaev          #+#    #+#              #
-#    Updated: 2025/12/17 21:41:58 by lundaevv         ###   ########.fr        #
+#    Updated: 2025/12/17 23:52:30 by lundaevv         ###   ########.fr        #
 #                                                                              #
 # **************************************************************************** #
 
@@ -55,7 +55,10 @@ SRC = \
 	parsing/lexer/lexer_operator.c \
 	parsing/lexer/lexer_utils.c \
 	parsing/expander/expander.c \
-	parsing/expander/expander_var.c \
+	parsing/expander/expander_len.c \
+	parsing/expander/expander_utils.c \
+	parsing/expander/expander_unquote.c \
+	parsing/expander/expander_unquote_run.c \
 	parsing/syntax/parser_syntax.c \
 	parsing/parser/parser.c \
 	parsing/parser/parser_utils.c \

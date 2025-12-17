@@ -6,15 +6,36 @@
 /*   By: lundaevv <lundaevv@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/12/17 21:44:33 by lundaevv          #+#    #+#             */
-/*   Updated: 2025/12/17 21:51:14 by lundaevv         ###   ########.fr       */
+/*   Updated: 2025/12/18 00:34:49 by lundaevv         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #ifndef PARSING_H
 # define PARSING_H
 
-# include <stdbool.h>
 # include <stdlib.h>
+# include <stdbool.h>
+
+/*
+** =========================
+** PARSER -> EXEC CONTRACT
+** =========================
+**
+** t_cmd:
+** - argv is a NULL-terminated array of strings.
+** - argv may contain empty strings (e.g. "" or '').
+** - If argv != NULL, then argv[argc] == NULL terminator is guaranteed.
+**
+** - redirs is either:
+**     - NULL when redir_count == 0
+**     - a malloc'ed array of size redir_count when redir_count > 0
+** - Each redirs[i].target is malloc'ed and owned by the parser.
+**
+** t_pipeline:
+** - cmds is a malloc'ed array of size cmd_count 
+** 				(cmd_count >= 1 when parse succeeds).
+** - All memory returned by parser is freed by free_pipeline().
+*/
 
 /*
 ** =========================
@@ -70,88 +91,64 @@ typedef struct s_pipeline
 	int		cmd_count;
 }	t_pipeline;
 
-/*
-** =========================
-** Lexer (public)
-** =========================
-*/
-t_token		*lexer_tokenize(const char *line);
+/* =============================== LEXER ==================================== */
 
-/*
-** Token utils (used by lexer and other parsing code)
-*/
+t_token		*lexer_tokenize(const char *line);
+t_token		*lexer_read_operator(const char *line, int *i);
+t_token		*lexer_read_word(const char *line, int *i);
+
 t_token		*token_new(char *value, t_token_type type);
 void		token_add_back(t_token **list, t_token *new_node);
 void		token_list_print(t_token *list);
 void		token_list_clear(t_token **list);
 int			is_space(char c);
 
-/*
-** Lexer helpers (non-static in your project)
-*/
-t_token		*lexer_read_operator(const char *line, int *i);
-t_token		*lexer_read_word(const char *line, int *i);
+/* ============================== EXPANDER ================================== */
 
-/*
-** =========================
-** Expander
-** =========================
-*/
-int			expand_tokens(t_token *list, char **envp, int last_status);
-char		*expand_variables_in_value(const char *value, char **envp);
+int			expand_tokens(t_token *list, char **envp, int last_exit_status);
 
-/*
-** =========================
-** Syntax validation
-** =========================
-*/
+char		*ms_expand_unquote(const char *src, char **envp, int last_status);
+int			ms_expand_run(char *dst, const char *src, void **ctx);
+size_t		ms_expanded_len(const char *src, char **envp, int last_status);
+
+int			ms_is_var_start(char c);
+int			ms_is_var_char(char c);
+int			ms_var_name_len(const char *s);
+char		*ms_get_env_value(const char *name, int len, char **envp);
+
+/* =============================== SYNTAX =================================== */
+
 int			validate_syntax(t_token *token);
 
-/*
-** =========================
-** Parser (public)
-** =========================
-*/
-t_pipeline	*parse_pipeline(t_token *tokens);
-void		free_pipeline(t_pipeline *p);
+/* =============================== PARSER =================================== */
 
-/*
-** Parser utils
-*/
+t_pipeline	*parse_pipeline(t_token *tokens);
+int			build_pipeline_cmds(t_pipeline *p, t_token *tokens);
+
 int			count_commands(t_token *tokens);
 void		init_cmd_array(t_cmd *cmds, int count);
-int			count_words_simple(t_token *tokens);
+void		free_pipeline(t_pipeline *p);
 
-/*
-** argv building
-*/
+/* argv */
 char		**build_argv_simple(t_token *tokens);
-int			is_redir_token(t_token_type type);
+int			count_words_simple(t_token *tokens);
 int			count_words_no_redirs(t_token *tokens);
-void		skip_redir_pair(t_token **cur);
 int			free_argv_partial(char **argv, int filled);
+void		skip_redir_pair(t_token **cur);
 
-/*
-** redir building
-*/
+/* redirs */
+int			is_redir_token(t_token_type type);
 int			count_redirs_simple(t_token *tokens);
 int			token_to_redir_type(t_token_type t, t_redir_type *out);
 t_redir		*build_redirs_simple(t_token *tokens, int *out_count);
 
+/* =============================== DEBUG ==================================== */
 /*
-** pipeline builder (fills cmds[])
+** ВАЖНО:
+** parsing.h не знает о t_shell.
+** Debug, который печатает shell, объявляется в minishell.h.
 */
-int			build_pipeline_cmds(t_pipeline *p, t_token *tokens);
-
-/*
-** =========================
-** Debug
-** =========================
-** Чтобы избежать циклической зависимости, используем forward-declare t_shell.
-*/
-struct s_shell;
-void		ms_debug_state(struct s_shell *shell, const char *line,
-				t_token *tokens, t_pipeline *p);
 void		ms_debug_counts(t_token *tokens);
+void		ms_debug_pipeline(const t_pipeline *p);
 
 #endif

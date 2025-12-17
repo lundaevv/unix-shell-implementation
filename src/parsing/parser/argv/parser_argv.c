@@ -6,7 +6,7 @@
 /*   By: lundaevv <lundaevv@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/12/17 15:57:02 by lundaevv          #+#    #+#             */
-/*   Updated: 2025/12/17 18:24:29 by lundaevv         ###   ########.fr       */
+/*   Updated: 2025/12/17 23:31:29 by lundaevv         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -19,8 +19,7 @@ static char	**alloc_argv_simple(t_token *tokens, int *count)
 {
 	char	**argv;
 
-	//*count = count_words_simple(tokens);
-    *count = count_words_no_redirs(tokens);
+	*count = count_words_no_redirs(tokens);
 	argv = (char **)malloc(sizeof(char *) * (size_t)(*count + 1));
 	if (!argv)
 		return (NULL);

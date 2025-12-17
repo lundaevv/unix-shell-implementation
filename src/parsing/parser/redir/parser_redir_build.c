@@ -6,7 +6,7 @@
 /*   By: lundaevv <lundaevv@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/12/17 18:46:26 by lundaevv          #+#    #+#             */
-/*   Updated: 2025/12/17 18:47:14 by lundaevv         ###   ########.fr       */
+/*   Updated: 2025/12/18 00:33:23 by lundaevv         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -63,13 +63,22 @@ t_redir	*build_redirs_simple(t_token *tokens, int *out_count)
 	if (!out_count)
 		return (NULL);
 	count = count_redirs_simple(tokens);
-	*out_count = count;
 	if (count == 0)
+	{
+		*out_count = 0;
 		return (NULL);
+	}
 	r = (t_redir *)malloc(sizeof(t_redir) * (size_t)count);
 	if (!r)
+	{
+		*out_count = 0;
 		return (NULL);
+	}
 	if (fill_redirs_simple(r, tokens) != 0)
+	{
+		*out_count = 0;
 		return (NULL);
+	}
+	*out_count = count;
 	return (r);
 }

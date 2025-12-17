@@ -6,7 +6,7 @@
 /*   By: lundaevv <lundaevv@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/12/11 19:18:50 by vlundaev          #+#    #+#             */
-/*   Updated: 2025/12/17 18:57:08 by lundaevv         ###   ########.fr       */
+/*   Updated: 2025/12/18 00:29:20 by lundaevv         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -14,51 +14,84 @@
 
 static const char	*redir_name(t_redir_type t)
 {
-	if (t == REDIR_IN) return ("<");
-	if (t == REDIR_OUT) return (">");
-	if (t == REDIR_APPEND) return (">>");
-	if (t == REDIR_HEREDOC) return ("<<");
+	if (t == REDIR_IN)
+		return ("<");
+	if (t == REDIR_OUT)
+		return (">");
+	if (t == REDIR_APPEND)
+		return (">>");
+	if (t == REDIR_HEREDOC)
+		return ("<<");
 	return ("?");
 }
 
-static void	ms_debug_redirs(t_cmd *cmd)
+static const char	*tok_name(t_token_type t)
+{
+	if (t == TOKEN_WORD)
+		return ("WORD");
+	if (t == TOKEN_PIPE)
+		return ("PIPE");
+	if (t == TOKEN_REDIR_IN)
+		return ("REDIR_IN");
+	if (t == TOKEN_REDIR_OUT)
+		return ("REDIR_OUT");
+	if (t == TOKEN_REDIR_APPEND)
+		return ("REDIR_APPEND");
+	if (t == TOKEN_HEREDOC)
+		return ("HEREDOC");
+	return ("?");
+}
+
+static int	argv_len(char *const *argv)
 {
 	int	i;
 
-	printf("  redir_count = %d\n", cmd->redir_count);
-	if (!cmd->redirs)
+	if (!argv)
+		return (0);
+	i = 0;
+	while (argv[i])
+		i++;
+	return (i);
+}
+
+static void	ms_debug_redirs(const t_cmd *cmd)
+{
+	int	i;
+
+	printf("  redirs ptr     = %p\n", (void *)cmd->redirs);
+	printf("  redir_count    = %d\n", cmd->redir_count);
+	if (!cmd->redirs || cmd->redir_count <= 0)
 		return ;
 	i = 0;
 	while (i < cmd->redir_count)
 	{
-		printf("  redir[%d]: op=%s target='%s'\n",
-			i, redir_name(cmd->redirs[i].type),
-			cmd->redirs[i].target);
+		printf("    redir[%d] ptr  = %p\n", i, (void *)&cmd->redirs[i]);
+		printf("      op          = %s\n", redir_name(cmd->redirs[i].type));
+		printf("      target ptr  = %p\n", (void *)cmd->redirs[i].target);
+		printf("      target      = '%s'\n",
+			(cmd->redirs[i].target ? cmd->redirs[i].target : "(null)"));
 		i++;
 	}
 }
 
 /*
-** Debug print of tokens
+** Debug print of tokens (source)
 */
 void	token_list_print(t_token *list)
 {
-	while (list)
+	int	i;
+
+	i = 0;
+	while (list && i < 200)
 	{
-		if (list->type == TOKEN_WORD)
-			ft_printf("WORD					: '%s'\n", list->value);
-		else if (list->type == TOKEN_PIPE)
-			ft_printf("PIPE					: '%s'\n", list->value);
-		else if (list->type == TOKEN_REDIR_IN)
-			ft_printf("REDIR_IN				: '%s'\n", list->value);
-		else if (list->type == TOKEN_REDIR_OUT)
-			ft_printf("REDIR_OUT				: '%s'\n", list->value);
-		else if (list->type == TOKEN_REDIR_APPEND)
-			ft_printf("REDIR_APPEND				: '%s'\n", list->value);
-		else if (list->type == TOKEN_HEREDOC)
-			ft_printf("HEREDOC					: '%s'\n", list->value);
+		printf("TOK[%d] node_ptr=%p type=%s(%d) value_ptr=%p value='%s'\n",
+			i, (void *)list, tok_name(list->type), list->type,
+			(void *)list->value, (list->value ? list->value : "(null)"));
 		list = list->next;
+		i++;
 	}
+	if (i == 200)
+		printf("(stop: token list too long)\n");
 }
 
 static void	ms_debug_line(const char *line)
@@ -73,53 +106,81 @@ static void	ms_debug_tokens(t_token *tokens)
 {
 	if (!tokens)
 		return ;
+	printf("=== TOKENS (after expand / before parse) ===\n");
 	token_list_print(tokens);
 }
 
-/*
-** Print argv for each command in the pipeline (if present).
-** Limit to 50 args to avoid infinite loop if argv is not NULL-terminated.
-*/
-static void	ms_debug_pipeline(t_pipeline *p)
+static void	ms_debug_argv(const t_cmd *cmd)
 {
+	int	argc;
 	int	i;
+
+	printf("argv ptr       = %p\n", (void *)cmd->argv);
+	if (!cmd->argv)
+	{
+		printf("argc           = 0\n");
+		printf("  (argv is NULL)\n");
+		return ;
+	}
+	argc = argv_len(cmd->argv);
+	printf("argc           = %d\n", argc);
+	i = 0;
+	while (cmd->argv[i] && i < 50)
+	{
+		printf("  argv[%d] ptr  = %p\n", i, (void *)cmd->argv[i]);
+		printf("  argv[%d]      = '%s'\n", i, cmd->argv[i]);
+		i++;
+	}
+	if (i == 50 && cmd->argv[i] != NULL)
+		printf("  (stop: argv not NULL-terminated?)\n");
+	printf("  argv[%d] ptr  = %p (terminator)\n",
+		argc, (void *)cmd->argv[argc]);
+}
+
+/*
+** Print argv + redirs for each command in the pipeline (what exec will use).
+** Limit argv to 50 args to avoid infinite loops if argv is not NULL-terminated.
+*/
+void	ms_debug_pipeline(const t_pipeline *p)
+{
 	int	j;
 
-	if (!p || p->cmd_count <= 0)
+	if (!p)
+	{
+		printf("=== PIPELINE (NULL) ===\n");
+		return ;
+	}
+	printf("=== PIPELINE STRUCTURE SENT TO EXEC ===\n");
+	printf("pipeline ptr   = %p\n", (void *)p);
+	printf("cmds ptr       = %p\n", (void *)p->cmds);
+	printf("cmd_count      = %d\n", p->cmd_count);
+	if (!p->cmds || p->cmd_count <= 0)
 		return ;
 	j = 0;
 	while (j < p->cmd_count)
 	{
-		printf("CMD[%d] argv:\n", j);
-		if (p->cmds[j].argv)
-		{
-			i = 0;
-			while (p->cmds[j].argv[i] && i < 50)
-			{
-				printf("  argv[%d] = '%s'\n", i, p->cmds[j].argv[i]);
-				i++;
-			}
-			if (i == 50 && p->cmds[j].argv[i] != NULL)
-				printf("  (stop: argv not NULL-terminated?)\n");
-		}
-
-		printf("CMD[%d] redirs:\n", j);
+		printf("\n--- CMD[%d] ---\n", j);
+		printf("cmd ptr        = %p\n", (void *)&p->cmds[j]);
+		ms_debug_argv(&p->cmds[j]);
+		printf("redirs:\n");
 		ms_debug_redirs(&p->cmds[j]);
-
 		j++;
 	}
+	printf("\n=== END PIPELINE ===\n");
 }
 
 /*
 ** Global debug entry point. Call this once per line.
 */
-void	ms_debug_state(t_shell *shell, const char *line,
-			t_token *tokens, t_pipeline *p)
+void	ms_debug_state(t_shell *shell, const char *line, t_token *tokens,
+		t_pipeline *p)
 {
 	(void)shell;
+	printf("\n================ DEBUG STATE ================\n");
 	ms_debug_line(line);
 	ms_debug_tokens(tokens);
 	ms_debug_pipeline(p);
+	printf("=============================================\n\n");
 }
 
 void	ms_debug_counts(t_token *tokens)

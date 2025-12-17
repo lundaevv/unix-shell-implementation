@@ -6,19 +6,19 @@
 /*   By: lundaevv <lundaevv@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/12/17 15:45:22 by lundaevv          #+#    #+#             */
-/*   Updated: 2025/12/17 18:48:38 by lundaevv         ###   ########.fr       */
+/*   Updated: 2025/12/17 23:29:49 by lundaevv         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "minishell.h"
 
-static t_token  *skip_to_next_command(t_token *cur)
+static t_token	*skip_to_next_command(t_token *cur)
 {
-    while (cur && cur->type != TOKEN_PIPE)
-        cur = cur->next;
-    if (cur && cur ->type == TOKEN_PIPE)
-        cur = cur->next;
-    return (cur);
+	while (cur && cur->type != TOKEN_PIPE)
+		cur = cur->next;
+	if (cur && cur->type == TOKEN_PIPE)
+		cur = cur->next;
+	return (cur);
 }
 
 /*

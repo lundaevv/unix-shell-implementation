@@ -6,13 +6,13 @@
 /*   By: lundaevv <lundaevv@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/12/17 18:45:16 by lundaevv          #+#    #+#             */
-/*   Updated: 2025/12/17 18:45:56 by lundaevv         ###   ########.fr       */
+/*   Updated: 2025/12/17 23:30:42 by lundaevv         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "minishell.h"
 
-int token_to_redir_type(t_token_type t, t_redir_type *out)
+int	token_to_redir_type(t_token_type t, t_redir_type *out)
 {
 	if (!out)
 		return (1);

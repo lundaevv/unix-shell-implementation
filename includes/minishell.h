@@ -6,7 +6,7 @@
 /*   By: lundaevv <lundaevv@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/10/08 11:52:15 by vlundaev          #+#    #+#             */
-/*   Updated: 2025/12/17 21:51:08 by lundaevv         ###   ########.fr       */
+/*   Updated: 2025/12/17 23:11:31 by lundaevv         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -54,5 +54,13 @@ int		line_build_state(t_shell *shell, char *line,
 int		is_exit_command(const char *line);
 int		handle_history_and_exit(t_shell *shell, char *line);
 int		handle_expand_error(t_token **tokens, char *line);
+
+/*
+** =========================
+** Debug (core-level)
+** =========================
+*/
+void	ms_debug_state(t_shell *shell, const char *line,
+			t_token *tokens, t_pipeline *p);
 
 #endif
