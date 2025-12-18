@@ -3,10 +3,10 @@
 #                                                         :::      ::::::::    #
 #    Makefile                                           :+:      :+:    :+:    #
 #                                                     +:+ +:+         +:+      #
-#    By: lundaevv <lundaevv@student.42.fr>          +#+  +:+       +#+         #
+#    By: vlundaev <vlundaev@student.hive.fi>        +#+  +:+       +#+         #
 #                                                 +#+#+#+#+#+   +#+            #
 #    Created: 2025/10/08 11:55:51 by vlundaev          #+#    #+#              #
-#    Updated: 2025/12/17 23:52:30 by lundaevv         ###   ########.fr        #
+#    Updated: 2025/12/18 14:30:29 by vlundaev         ###   ########.fr        #
 #                                                                              #
 # **************************************************************************** #
 
@@ -50,6 +50,7 @@ SRC = \
 	core/loop_utils.c \
 	core/line_runner.c \
 	core/line_steps.c \
+	core/line_quotes.c \
 	parsing/lexer/lexer.c \
 	parsing/lexer/lexer_word.c \
 	parsing/lexer/lexer_operator.c \

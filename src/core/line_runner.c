@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   line_runner.c                                      :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: lundaevv <lundaevv@student.42.fr>          +#+  +:+       +#+        */
+/*   By: vlundaev <vlundaev@student.hive.fi>        +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/12/17 21:01:55 by lundaevv          #+#    #+#             */
-/*   Updated: 2025/12/17 21:13:44 by lundaevv         ###   ########.fr       */
+/*   Updated: 2025/12/18 14:48:48 by vlundaev         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -31,6 +31,8 @@ int	run_line(t_shell *shell, char *line)
 	p = NULL;
 	if (handle_history_and_exit(shell, line))
 		return (1);
+	if (handle_unclosed_quotes(shell, line))
+		return (0);
 	rc = line_build_state(shell, line, &tokens, &p);
 	if (rc != 0)
 		return (0);

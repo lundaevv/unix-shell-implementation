@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   parsing.h                                          :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: lundaevv <lundaevv@student.42.fr>          +#+  +:+       +#+        */
+/*   By: vlundaev <vlundaev@student.hive.fi>        +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/12/17 21:44:33 by lundaevv          #+#    #+#             */
-/*   Updated: 2025/12/18 00:34:49 by lundaevv         ###   ########.fr       */
+/*   Updated: 2025/12/18 17:36:45 by vlundaev         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -17,9 +17,9 @@
 # include <stdbool.h>
 
 /*
-** =========================
+** =============================================================================
 ** PARSER -> EXEC CONTRACT
-** =========================
+** =============================================================================
 **
 ** t_cmd:
 ** - argv is a NULL-terminated array of strings.
@@ -37,10 +37,13 @@
 ** - All memory returned by parser is freed by free_pipeline().
 */
 
+struct s_shell;
+typedef struct s_shell	t_shell;
+
 /*
-** =========================
+** =============================================================================
 ** Token layer (lexer output)
-** =========================
+** =============================================================================
 */
 typedef enum e_token_type
 {
@@ -60,9 +63,9 @@ typedef struct s_token
 }	t_token;
 
 /*
-** =========================
+** =============================================================================
 ** Parser output (execution input)
-** =========================
+** =============================================================================
 */
 typedef enum e_redir_type
 {
@@ -90,6 +93,13 @@ typedef struct s_pipeline
 	t_cmd	*cmds;
 	int		cmd_count;
 }	t_pipeline;
+
+/* ============================ LINE RUNNER ================================= */
+
+int			run_line(t_shell *shell, char *line);
+int			line_build_state(t_shell *shell, char *line,
+				t_token **out_tokens, t_pipeline **out_p);
+int			handle_unclosed_quotes(t_shell *shell, char *line);
 
 /* =============================== LEXER ==================================== */
 
