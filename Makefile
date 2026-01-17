@@ -2,6 +2,8 @@ NAME = minishell
 
 CC = cc
 CFLAGS = -Wall -Wextra -Werror -Iincludes -Ilibft
+LDFLAGS = -lreadline -lncurses
+
 
 LIBFT_DIR = libft
 LIBFT = $(LIBFT_DIR)/libft.a
@@ -23,13 +25,17 @@ src/builtin/builtin_export_unset.c \
 src/builtin/builtin_exit.c \
 src/env/env.c \
 src/env/env_utils.c \
+src/exec/exec_heredoc.c \
+src/parser/parse_stub.c \
+
 
 OBJS = $(SRCS:.c=.o)
 
 all: $(LIBFT) $(NAME)
 
 $(NAME): $(OBJS) $(LIBFT)
-	$(CC) $(CFLAGS) $(OBJS) $(LIBFT) -o $(NAME)
+	$(CC) $(OBJS) $(LIBFT) $(LDFLAGS) -o $(NAME)
+
 
 $(LIBFT):
 	make -C $(LIBFT_DIR)

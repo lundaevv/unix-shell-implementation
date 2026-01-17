@@ -3,24 +3,22 @@
 /* minimal: only supports export KEY=VALUE, no printing sorting yet */
 int bi_export(t_shell *sh, t_cmd *cmd)
 {
-    char *arg;
-    char *eq;
+    char    *arg;
+    char    *eq;
+    char    *name;
+    int     ret;
 
     if (!cmd->argv[1])
-    {
-        /* optional: implement export_print later */
         return 0;
-    }
-
     arg = cmd->argv[1];
     eq = ft_strchr(arg, '=');
     if (!eq)
-    {
         return env_set(sh, arg, "");
-    }
-    *eq = '\0';
-    int ret = env_set(sh, arg, eq + 1);
-    *eq = '=';
+    name = ft_substr(arg, 0, (size_t)(eq - arg));
+    if (!name)
+        return 1;
+    ret = env_set(sh, name, eq + 1);
+    free(name);
     return ret;
 }
 

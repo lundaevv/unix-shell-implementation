@@ -2,6 +2,7 @@
 
 void child_run_pipeline_cmd(t_shell *sh, t_pipeline *p, int i, int pipes[][2])
 {
+	signals_child_exec();
     int pipe_count;
     int k;
     t_cmd *cmd;
@@ -35,8 +36,9 @@ void child_run_pipeline_cmd(t_shell *sh, t_pipeline *p, int i, int pipes[][2])
         k++;
     }
 
-    if (apply_redirections(cmd) != 0)
-        exit(1);
+    int r = apply_redirections(cmd);
+	if (r != 0)
+    	exit(r);
 
     if (cmd->argv && cmd->argv[0] && is_builtin(cmd->argv[0]))
         exit(run_builtin(sh, cmd));

@@ -75,8 +75,18 @@ int apply_redirections(t_cmd *cmd)
 		}
 		else if (cmd->redirs[i].type == REDIR_HEREDOC)
 		{
-			// Heredoc redirection
-			// We skip its implementation
+			fd = heredoc_open(cmd->redirs[i].filename);
+			if (fd == -130)
+				return (130);
+			if (fd < 0)
+				return (1);
+			if (dup2(fd, STDIN_FILENO) < 0)
+			{
+				perror("dup2");
+				close(fd);
+				return (1);
+			}
+			close(fd);
 		}
 		i++;
 	}

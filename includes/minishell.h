@@ -6,7 +6,7 @@
 /*   By: gperedny <gperedny@student.hive.fi>        +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/12/29 16:04:51 by gperedny          #+#    #+#             */
-/*   Updated: 2026/01/08 02:48:32 by gperedny         ###   ########.fr       */
+/*   Updated: 2026/01/17 20:08:11 by gperedny         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -65,7 +65,12 @@ typedef struct s_shell
 
 
 /*globals*/
-extern int g_signal;
+extern volatile sig_atomic_t g_signal;
+
+/*signals*/
+void signals_interactive(void);
+void signals_parent_exec(void);
+void signals_child_exec(void);
 
 /*execution*/
 int exec_pipeline(t_shell *sh, t_pipeline *p);
@@ -79,6 +84,9 @@ char **ft_split(char const *s, char c);
 
 /*redirections*/
 int		apply_redirections(t_cmd *cmd);
+
+/*heredoc*/
+int 	heredoc_open(const char *limiter);
 
 /*pipes*/
 void child_run_pipeline_cmd(t_shell *sh, t_pipeline *p, int i, int pipes[][2]);
@@ -102,6 +110,10 @@ int   env_set(t_shell *sh, const char *name, const char *value);  // export
 int   env_unset(t_shell *sh, const char *name);
 void  env_print(char **envp);           // env
 void  export_print(char **envp);        // export (no args)
+
+/*parse*/
+int  parse_stub(char *line, t_pipeline *p);
+void free_pipeline_stub(t_pipeline *p);
 
 
 #endif
