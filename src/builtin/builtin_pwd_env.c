@@ -1,21 +1,24 @@
 #include "minishell.h"
 
-int bi_pwd(void)
+int	bi_pwd(void)
 {
-    char buf[4096];
+	char	buf[4096];
 
-    if (!getcwd(buf, sizeof(buf)))
-    {
-        perror("pwd");
-        return 1;
-    }
-    write(1, buf, ft_strlen(buf));
-    write(1, "\n", 1);
-    return 0;
+	if (!getcwd(buf, sizeof(buf)))
+	{
+		perror("pwd");
+		return (1);
+	}
+	write(STDOUT_FILENO, buf, ft_strlen(buf));
+	write(STDOUT_FILENO, "\n", 1);
+	return (0);
 }
 
-int bi_env(t_shell *sh)
+int	bi_env(t_shell *sh)
 {
-    env_print(sh->envp);
-    return 0;
+	if (!sh)
+		return (1);
+	env_print(sh->envp);
+	return (0);
 }
+

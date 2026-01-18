@@ -11,6 +11,10 @@ LIBFT = $(LIBFT_DIR)/libft.a
 SRCS = \
 src/main.c \
 src/exec/exec_pipeline.c \
+src/exec/exec_pipeline_single.c\
+src/exec/exec_pipeline_multi.c \
+src/exec/exec_stdio.c\
+src/exec/exec_wait.c\
 src/exec/exec_cmd.c \
 src/exec/path_resolve.c \
 src/exec/exec_utils.c \

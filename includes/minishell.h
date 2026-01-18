@@ -6,7 +6,7 @@
 /*   By: gperedny <gperedny@student.hive.fi>        +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/12/29 16:04:51 by gperedny          #+#    #+#             */
-/*   Updated: 2026/01/17 20:08:11 by gperedny         ###   ########.fr       */
+/*   Updated: 2026/01/18 10:56:08 by gperedny         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -72,8 +72,15 @@ void signals_interactive(void);
 void signals_parent_exec(void);
 void signals_child_exec(void);
 
-/*execution*/
+/*execution + helpers*/
 int exec_pipeline(t_shell *sh, t_pipeline *p);
+int exec_pipeline_single(t_shell *sh, t_cmd *cmd);
+int exec_pipeline_multi(t_shell *sh, t_pipeline *p);
+int ms_wait_last(pid_t *pids, int n);
+int ms_status_to_exit(int status);
+int ms_stdio_save(int *in, int *out);
+void ms_stdio_restore(int in, int out);
+void ms_close_all_pipes(int pipes[][2], int n);
 void exec_cmd(t_cmd *cmd, char **envp);
 
 /*path utils*/

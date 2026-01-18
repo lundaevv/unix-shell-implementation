@@ -35,32 +35,29 @@ Memory:
 
  */
 
-void exec_cmd(t_cmd *cmd, char **envp)
+static int	ms_exec_error_code(void)
 {
-    char *path;
+	if (errno == EACCES || errno == EISDIR)
+		return (126);
+	return (127);
+}
 
-    /* If command is empty, do nothing */
-    if (!cmd->argv || !cmd->argv[0])
-        exit(0);
+void	exec_cmd(t_cmd *cmd, char **envp)
+{
+	char	*path;
 
-    /* Find the correct executable path */
-    path = resolve_path(cmd->argv[0], envp);
-
-    /* If we cannot resolve path -> behave like bash: "command not found" */
-    if (!path)
-    {
-        ft_putstr_fd(cmd->argv[0], 2);
-        ft_putstr_fd(": command not found\n", 2);
-        exit(127);
-    }
-
-    /* Replace current process with the program.
-       If execve succeeds, it never returns. */
-    execve(path, cmd->argv, envp);
-
-    /* If we are here -> execve failed */
-    perror(cmd->argv[0]);
-    free(path);
-    exit(127);
+	if (!cmd || !cmd->argv || !cmd->argv[0])
+		exit(0);
+	path = resolve_path(cmd->argv[0], envp);
+	if (!path)
+	{
+		ft_putstr_fd(cmd->argv[0], 2);
+		ft_putstr_fd(": command not found\n", 2);
+		exit(127);
+	}
+	execve(path, cmd->argv, envp);
+	perror(cmd->argv[0]);
+	free(path);
+	exit(ms_exec_error_code());
 }
 

@@ -1,18 +1,20 @@
 #include "minishell.h"
-#include "../../includes/minishell.h"
 
-static int	has_slash(const char *s)
+static int	ms_has_slash(const char *s)
 {
-	while (*s)
+	int	i;
+
+	i = 0;
+	while (s && s[i])
 	{
-		if (*s == '/')
+		if (s[i] == '/')
 			return (1);
-		s++;
+		i++;
 	}
 	return (0);
 }
 
-static char	*join_path(const char *dir, const char *cmd)
+static char	*ms_join_path(const char *dir, const char *cmd)
 {
 	char	*res;
 	size_t	len;
@@ -27,7 +29,6 @@ static char	*join_path(const char *dir, const char *cmd)
 	return (res);
 }
 
-
 char	*resolve_path(const char *cmd, char **envp)
 {
 	char	**paths;
@@ -35,30 +36,21 @@ char	*resolve_path(const char *cmd, char **envp)
 	char	*full;
 	int		i;
 
-	if (has_slash(cmd))
-	{
-		if (access(cmd, X_OK) == 0)
-			return (strdup(cmd));
+	if (!cmd || !*cmd)
 		return (NULL);
-	}
-
+	if (ms_has_slash(cmd))
+		return ((access(cmd, X_OK) == 0) ? ft_strdup(cmd) : NULL);
 	path_env = get_env_value("PATH", envp);
 	if (!path_env)
 		return (NULL);
-
 	paths = ft_split(path_env, ':');
 	i = 0;
 	while (paths && paths[i])
 	{
-		full = join_path(paths[i], cmd);
-		if (access(full, X_OK) == 0)
-		{
-			free_split(paths);
-			return (full);
-		}
+		full = ms_join_path(paths[i++], cmd);
+		if (full && access(full, X_OK) == 0)
+			return (free_split(paths), full);
 		free(full);
-		i++;
 	}
-	free_split(paths);
-	return (NULL);
+	return (free_split(paths), NULL);
 }
