@@ -6,7 +6,7 @@
 /*   By: lundaevv <lundaevv@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/12/17 21:01:55 by lundaevv          #+#    #+#             */
-/*   Updated: 2026/01/04 15:32:42 by lundaevv         ###   ########.fr       */
+/*   Updated: 2026/01/19 17:27:32 by lundaevv         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -40,19 +40,23 @@ int	run_line(t_shell *shell, char *line)
 
 	tokens = NULL;
 	p = NULL;
+	rc = 0;
 	cut_first_newline(line);
 	if (is_only_spaces(line))
+		return (free(line), 0);
+	if (handle_history_and_exit(shell, line))
 	{
 		free(line);
-		return (0);
-	}
-	if (handle_history_and_exit(shell, line))
 		return (1);
+	}
 	if (handle_unclosed_quotes(shell, line))
-		return (0);
+		return (free(line), 0);
 	rc = line_build_state(shell, line, &tokens, &p);
 	if (rc != 0)
+	{
+		cleanup_line(line, &tokens, &p);
 		return (0);
+	}
 	cleanup_line(line, &tokens, &p);
 	return (0);
 }

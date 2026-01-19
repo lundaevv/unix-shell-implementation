@@ -6,7 +6,7 @@
 /*   By: lundaevv <lundaevv@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/12/17 21:44:33 by lundaevv          #+#    #+#             */
-/*   Updated: 2026/01/19 16:17:28 by lundaevv         ###   ########.fr       */
+/*   Updated: 2026/01/19 16:53:24 by lundaevv         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -17,68 +17,101 @@
 # include <stdbool.h>
 
 /*
-** =============================================================================
+** ============================================================================
 ** PARSER -> EXEC CONTRACT
-** =============================================================================
+** ============================================================================
 **
 ** Ownership / lifetime:
-** - Parser allocates all memory inside t_pipeline/t_cmd (argv strings, redirs 
-**	 targets, arrays). Executor must NOT free individual fields. 
-**   Use free_pipeline() to free everything returned by the parser.
+** - Parser allocates all memory inside t_pipeline/t_cmd:
+**     - argv strings
+**     - redirs targets
+**     - argv/redirs arrays
+** - Executor must NOT free individual fields.
+** - Use free_pipeline() to free everything returned by the parser.
 **
 ** Segmentation rules:
 ** - Each t_cmd is built from tokens up to (but not including) TOKEN_PIPE.
 ** - Redirections belong only to the command segment where they appear.
 **
-** t_cmd:
+** t_cmd (argv):
 ** - argv is ALWAYS non-NULL on successful parse.
-** - argv is a NULL-terminated array of malloc'ed strings owned by the parser.
+** - argv is a NULL-terminated array of malloc'ed strings.
 ** - Empty strings are valid arguments (e.g. "" or '').
-** - For an empty command (no WORD tokens excluding redirs), argv[0] == NULL.
+** - For an empty command (no WORD tokens excluding redirs):
+**     argv[0] == NULL
 **
+** t_cmd (redirs):
 ** - redirs follows a strict count/pointer contract:
 **     - if redir_count == 0  -> redirs == NULL
-**     - if redir_count  > 0  -> redirs points to a malloc'ed array of size 
-**       redir_count
+**     - if redir_count  > 0  -> redirs points to a malloc'ed array
 ** - Each redirs[i].target is malloc'ed and owned by the parser.
 **
 ** t_pipeline:
-** - cmds is a malloc'ed array of size cmd_count, owned by the parser.
-** - On successful parse: cmd_count >= 1 and cmds != NULL.
+** - cmds is a malloc'ed array of size cmd_count.
+** - On successful parse:
+**     - cmd_count >= 1
+**     - cmds != NULL
 **
 ** Failure behavior:
-** - On parse failure: parse_pipeline() returns NULL (and must not leak memory).
+** - On parse failure parse_pipeline() returns NULL.
+** - Parser must not leak memory on failure.
 **
-** =============================================================================
+** ============================================================================
+** REDIRECTION SEMANTICS (executor rules)
+** ============================================================================
+**
+** Redirs are applied from left to right.
+** The LAST redirection of a given stream wins.
+**
+** Examples (stdin):
+** - cmd << A << B       -> stdin is heredoc B (A is still read/consumed)
+** - cmd < in << A       -> stdin is heredoc A
+** - cmd << A < in       -> stdin is file "in"
+**
+** ============================================================================
 ** HEREDOC CONTRACT (<< limiter)
-** =============================================================================
+** ============================================================================
 **
 ** Parser responsibilities:
-** - For TOKEN_HEREDOC, parser creates a redirection:
-**     redir.type          = REDIR_HEREDOC
-**     redir.target        = limiter string (malloc'ed)
-**     redir.heredoc_expand:
-**         - true  if limiter was NOT quoted
-**         - false if limiter token contained ANY quotes (single or double)
+** - For TOKEN_HEREDOC, parser creates one redirection:
+**     redir.type   = REDIR_HEREDOC
+**     redir.target = limiter string (malloc'ed, quotes removed)
 **
-** - Quotes around the limiter MUST be removed in redir.target.
+** - redir.heredoc_expand is set based on limiter quoting:
+**     - true  if limiter token had NO quotes
+**     - false if limiter token contained ANY quotes (', ")
+**
+** - Quotes around limiter MUST be removed in redir.target.
 **   Examples:
 **     << EOF         -> target="EOF",    heredoc_expand=true
 **     << 'EOF'       -> target="EOF",    heredoc_expand=false
 **     << "$USER"     -> target="$USER",  heredoc_expand=false
 **     << "E'O'F"     -> target="E'O'F",  heredoc_expand=false
 **
-** Executor responsibilities:
-** - Executor must read heredoc input until a line equals redir.target exactly.
-** - If redir.heredoc_expand == true:
-**     expand $VAR and $? inside heredoc body (bash-like)
-** - If redir.heredoc_expand == false:
-**     heredoc body is taken literally (NO expansions).
-**
-** Notes:
 ** - Limiter itself is NEVER expanded by the parser.
+**
+** Executor responsibilities:
+** - Executor must process heredocs in the SAME order as redirs[].
+** - For each REDIR_HEREDOC:
+**     - read lines until a line equals redir.target exactly
+**     - if redir.heredoc_expand == true:
+**         expand $VAR and $? inside heredoc body (bash-like)
+**     - if redir.heredoc_expand == false:
+**         heredoc body is literal (NO expansions)
+**
+** - If multiple heredocs exist in one command:
+**     - executor must READ/CONSUME all of them
+**     - stdin must be connected to the LAST heredoc after all redirs
+**
+** Signals:
+** - If Ctrl-C happens while reading heredoc:
+**     - stop heredoc reading immediately
+**     - set last exit status to 130
+**     - do NOT execute the pipeline/commands
+**
+** Memory:
 ** - All memory in redir.target is owned by the parser and freed by
-**		 free_pipeline().
+**   free_pipeline().
 */
 
 struct s_shell;
