@@ -6,7 +6,7 @@
 /*   By: gperedny <gperedny@student.hive.fi>        +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/12/29 16:04:51 by gperedny          #+#    #+#             */
-/*   Updated: 2026/01/20 17:03:15 by gperedny         ###   ########.fr       */
+/*   Updated: 2026/01/20 17:32:42 by gperedny         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -14,6 +14,7 @@
 # define MINISHELL_H
 
 /*includes*/
+#include "libft.h"
 # include <unistd.h>
 # include <stdlib.h>
 # include <stdio.h>
@@ -22,7 +23,6 @@
 #include <errno.h>
 # include <signal.h>
 # include <string.h>
-#include "libft.h"
 #include <fcntl.h>
 #include <limits.h>
 
@@ -109,7 +109,7 @@ char    *ms_get_env_value(const char *name, int len, char **envp);
 /*pipes*/
 void child_run_pipeline_cmd(t_shell *sh, t_pipeline *p, int i, int pipes[][2]);
 
-/* builtins */
+/* builtins + utils */
 int  is_builtin(const char *name);
 int  is_parent_builtin(const char *name);
 int  run_builtin(t_shell *sh, t_cmd *cmd);
@@ -122,6 +122,8 @@ int  bi_unset(t_shell *sh, t_cmd *cmd);
 int  bi_exit(t_shell *sh, t_cmd *cmd);
 int		ms_is_strict_number(const char *s);
 int		ms_atoll_checked(const char *s, long long *out);
+int ms_is_digit(char c);
+int ms_is_space(char c);
 
 /* env helpers */
 char **env_copy(char **envp);

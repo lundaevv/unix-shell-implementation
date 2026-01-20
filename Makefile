@@ -27,7 +27,8 @@ src/builtin/builtin_cd.c \
 src/builtin/builtin_pwd_env.c \
 src/builtin/builtin_export_unset.c \
 src/builtin/builtin_exit.c \
-src/builtin/builtin_exit_utils.c \
+src/builtin/exit_atoll.c \
+src/builtin/exit_num_utils.c \
 src/env/env.c \
 src/env/env_utils.c \
 src/exec/exec_heredoc.c \
