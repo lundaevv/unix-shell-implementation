@@ -14,7 +14,7 @@ static void	print_too_many(void)
 
 int	bi_exit(t_shell *sh, t_cmd *cmd)
 {
-	long	n;
+	long long	n;
 
 	if (!sh || !cmd || !cmd->argv || !cmd->argv[0])
 		return (1);
@@ -23,7 +23,7 @@ int	bi_exit(t_shell *sh, t_cmd *cmd)
 		sh->should_exit = 1;
 		return (sh->exit_status);
 	}
-	if (!ms_atol_checked(cmd->argv[1], &n))
+	if (!ms_atoll_checked(cmd->argv[1], &n))
 	{
 		print_num_required(cmd->argv[1]);
 		sh->should_exit = 1;

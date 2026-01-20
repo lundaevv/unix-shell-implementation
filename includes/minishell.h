@@ -6,7 +6,7 @@
 /*   By: gperedny <gperedny@student.hive.fi>        +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/12/29 16:04:51 by gperedny          #+#    #+#             */
-/*   Updated: 2026/01/19 20:18:22 by gperedny         ###   ########.fr       */
+/*   Updated: 2026/01/20 17:03:15 by gperedny         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -101,7 +101,6 @@ int 	heredoc_open(t_shell *sh, const char *limiter, int expander);
 char    *ms_expand_unquote(const char *src, char **envp, int last_status);
 size_t  ms_expanded_len(const char *src, char **envp, int last_status);
 int     ms_expand_run(char *dst, const char *src, void **ctx);
-
 int     ms_is_var_start(char c);
 int     ms_is_var_char(char c);
 int     ms_var_name_len(const char *s);
@@ -122,7 +121,7 @@ int  bi_export(t_shell *sh, t_cmd *cmd);
 int  bi_unset(t_shell *sh, t_cmd *cmd);
 int  bi_exit(t_shell *sh, t_cmd *cmd);
 int		ms_is_strict_number(const char *s);
-int		ms_atol_checked(const char *s, long *out);
+int		ms_atoll_checked(const char *s, long long *out);
 
 /* env helpers */
 char **env_copy(char **envp);
