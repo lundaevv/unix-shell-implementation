@@ -6,15 +6,15 @@
 /*   By: lundaevv <lundaevv@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/12/17 21:44:33 by lundaevv          #+#    #+#             */
-/*   Updated: 2026/01/19 16:53:24 by lundaevv         ###   ########.fr       */
+/*   Updated: 2026/01/20 15:48:21 by lundaevv         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #ifndef PARSING_H
 # define PARSING_H
 
-# include <stdlib.h>
 # include <stdbool.h>
+# include <stdlib.h>
 
 /*
 ** ============================================================================
@@ -114,7 +114,6 @@
 **   free_pipeline().
 */
 
-struct s_shell;
 typedef struct s_shell	t_shell;
 
 /*
@@ -130,15 +129,15 @@ typedef enum e_token_type
 	TOKEN_REDIR_OUT,
 	TOKEN_REDIR_APPEND,
 	TOKEN_HEREDOC
-}	t_token_type;
+}						t_token_type;
 
 typedef struct s_token
 {
-	char			*value;
-	t_token_type	type;
-	bool			has_quotes;
-	struct s_token	*next;
-}	t_token;
+	char				*value;
+	t_token_type		type;
+	bool				has_quotes;
+	struct s_token		*next;
+}						t_token;
 
 /*
 ** =============================================================================
@@ -151,90 +150,94 @@ typedef enum e_redir_type
 	REDIR_OUT,
 	REDIR_APPEND,
 	REDIR_HEREDOC
-}	t_redir_type;
+}						t_redir_type;
 
 typedef struct s_redir
 {
-	t_redir_type	type;
-	char			*target;
-	bool			heredoc_expand;
-}	t_redir;
+	t_redir_type		type;
+	char				*target;
+	bool				heredoc_expand;
+}						t_redir;
 
 typedef struct s_cmd
 {
-	char	**argv;
-	t_redir	*redirs;
-	int		redir_count;
-}	t_cmd;
+	char				**argv;
+	t_redir				*redirs;
+	int					redir_count;
+}						t_cmd;
 
 typedef struct s_pipeline
 {
-	t_cmd	*cmds;
-	int		cmd_count;
-}	t_pipeline;
+	t_cmd				*cmds;
+	int					cmd_count;
+}						t_pipeline;
 
 /* ============================ LINE RUNNER ================================= */
 
-int			run_line(t_shell *shell, char *line);
-int			line_build_state(t_shell *shell, char *line,
-				t_token **out_tokens, t_pipeline **out_p);
-int			handle_unclosed_quotes(t_shell *shell, char *line);
-int			is_only_spaces(const char *s);
+int						run_line(t_shell *shell, char *line);
+int						line_build_state(t_shell *shell, char *line,
+							t_token **out_tokens, t_pipeline **out_p);
+int						handle_unclosed_quotes(t_shell *shell, char *line);
+int						is_only_spaces(const char *s);
 
 /* =============================== LEXER ==================================== */
 
-t_token		*lexer_tokenize(const char *line);
-t_token		*lexer_read_operator(const char *line, int *i);
-t_token		*lexer_read_word(const char *line, int *i);
+t_token					*lexer_tokenize(const char *line);
+t_token					*lexer_read_operator(const char *line, int *i);
+t_token					*lexer_read_word(const char *line, int *i);
 
-t_token		*token_new(char *value, t_token_type type);
-void		token_add_back(t_token **list, t_token *new_node);
-void		token_list_print(t_token *list);
-void		token_list_clear(t_token **list);
-int			is_space(char c);
+t_token					*token_new(char *value, t_token_type type);
+void					token_add_back(t_token **list, t_token *new_node);
+void					token_list_print(t_token *list);
+void					token_list_clear(t_token **list);
+int						is_space(char c);
 
 /* ============================== EXPANDER ================================== */
 
-int			expand_tokens(t_token *list, char **envp, int last_exit_status);
+int						expand_tokens(t_token *list, char **envp,
+							int last_exit_status);
 
-char		*ms_expand_unquote(const char *src, char **envp, int last_status);
-int			ms_expand_run(char *dst, const char *src, void **ctx);
-size_t		ms_expanded_len(const char *src, char **envp, int last_status);
+char					*ms_expand_unquote(const char *src, char **envp,
+							int last_status);
+int						ms_expand_run(char *dst, const char *src, void **ctx);
+size_t					ms_expanded_len(const char *src, char **envp,
+							int last_status);
 
-char		*ms_unquote_limiter(const char *src);
-int			ms_quote_step_i(const char *s, int *i, char *q);
-int			ms_quote_step_p(const char **p, char *q);
+char					*ms_unquote_limiter(const char *src);
+int						ms_quote_step_i(const char *s, int *i, char *q);
+int						ms_quote_step_p(const char **p, char *q);
 
-int			ms_is_var_start(char c);
-int			ms_is_var_char(char c);
-int			ms_var_name_len(const char *s);
-char		*ms_get_env_value(const char *name, int len, char **envp);
+int						ms_is_var_start(char c);
+int						ms_is_var_char(char c);
+int						ms_var_name_len(const char *s);
+char					*ms_get_env_value(const char *name, int len,
+							char **envp);
 
 /* =============================== SYNTAX =================================== */
 
-int			validate_syntax(t_token *token);
+int						validate_syntax(t_token *token);
 
 /* =============================== PARSER =================================== */
 
-t_pipeline	*parse_pipeline(t_token *tokens);
-int			build_pipeline_cmds(t_pipeline *p, t_token *tokens);
+t_pipeline				*parse_pipeline(t_token *tokens);
+int						build_pipeline_cmds(t_pipeline *p, t_token *tokens);
 
-int			count_commands(t_token *tokens);
-void		init_cmd_array(t_cmd *cmds, int count);
-void		free_pipeline(t_pipeline *p);
+int						count_commands(t_token *tokens);
+void					init_cmd_array(t_cmd *cmds, int count);
+void					free_pipeline(t_pipeline *p);
 
 /* argv */
-char		**build_argv_simple(t_token *tokens);
-int			count_words_simple(t_token *tokens);
-int			count_words_no_redirs(t_token *tokens);
-int			free_argv_partial(char **argv, int filled);
-void		skip_redir_pair(t_token **cur);
+char					**build_argv_simple(t_token *tokens);
+int						count_words_simple(t_token *tokens);
+int						count_words_no_redirs(t_token *tokens);
+int						free_argv_partial(char **argv, int filled);
+void					skip_redir_pair(t_token **cur);
 
 /* redirs */
-int			is_redir_token(t_token_type type);
-int			count_redirs_simple(t_token *tokens);
-int			token_to_redir_type(t_token_type t, t_redir_type *out);
-t_redir		*build_redirs_simple(t_token *tokens, int *out_count);
+int						is_redir_token(t_token_type type);
+int						count_redirs_simple(t_token *tokens);
+int						token_to_redir_type(t_token_type t, t_redir_type *out);
+t_redir					*build_redirs_simple(t_token *tokens, int *out_count);
 
 /* =============================== DEBUG ==================================== */
 /*
@@ -242,7 +245,7 @@ t_redir		*build_redirs_simple(t_token *tokens, int *out_count);
 ** parsing.h не знает о t_shell.
 ** Debug, который печатает shell, объявляется в minishell.h.
 */
-void		ms_debug_counts(t_token *tokens);
-void		ms_debug_pipeline(const t_pipeline *p);
+void					ms_debug_counts(t_token *tokens);
+void					ms_debug_pipeline(const t_pipeline *p);
 
 #endif

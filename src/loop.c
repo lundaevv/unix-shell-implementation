@@ -6,7 +6,7 @@
 /*   By: lundaevv <lundaevv@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/12/02 17:12:40 by vlundaev          #+#    #+#             */
-/*   Updated: 2025/12/17 21:04:56 by lundaevv         ###   ########.fr       */
+/*   Updated: 2026/01/20 15:46:33 by lundaevv         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -41,13 +41,12 @@ void	shell_loop(t_shell *shell)
 {
 	char	*line;
 
-	// line = NULL;
 	while (1)
 	{
 		line = read_line_with_prompt();
 		if (!line)
 			break ;
-		if (run_line(shell, line)) // can be freed here instead of the function
+		if (run_line(shell, line))
 			break ;
 	}
 }

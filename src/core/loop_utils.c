@@ -6,7 +6,7 @@
 /*   By: lundaevv <lundaevv@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/12/11 19:31:31 by vlundaev          #+#    #+#             */
-/*   Updated: 2026/01/20 15:21:14 by lundaevv         ###   ########.fr       */
+/*   Updated: 2026/01/20 15:39:42 by lundaevv         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -53,7 +53,6 @@ int	handle_history_and_exit(t_shell *shell, char *line)
 {
 	if (!line || is_only_spaces(line))
 		return (0);
-
 	add_history(line);
 	if (is_exit_command(line))
 	{
