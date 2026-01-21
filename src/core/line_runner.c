@@ -6,7 +6,7 @@
 /*   By: lundaevv <lundaevv@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/12/17 21:01:55 by lundaevv          #+#    #+#             */
-/*   Updated: 2026/01/20 15:45:31 by lundaevv         ###   ########.fr       */
+/*   Updated: 2026/01/21 14:04:43 by lundaevv         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -52,6 +52,7 @@ int	run_line(t_shell *shell, char *line)
 	rc = line_build_state(shell, line, &tokens, &p);
 	if (rc != 0)
 		return (cleanup_line(line, &tokens, &p), 0);
+	exec_pipeline(shell, p);
 	cleanup_line(line, &tokens, &p);
 	return (0);
 }

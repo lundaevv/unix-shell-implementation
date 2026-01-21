@@ -1,0 +1,3755 @@
+
+
+==================== includes/execution.h ====================
+
+#ifndef EXECUTION_H
+# define EXECUTION_H
+
+# include <sys/types.h>
+# include <signal.h>
+
+# include "parsing.h"
+
+typedef struct s_shell	t_shell;
+
+/* globals */
+extern volatile sig_atomic_t	g_signal;
+
+/* signals */
+void	signals_interactive(void);
+void	signals_parent_exec(void);
+void	signals_child_exec(void);
+
+/* execution */
+int		exec_pipeline(t_shell *sh, t_pipeline *p);
+int		exec_pipeline_single(t_shell *sh, t_cmd *cmd);
+int		exec_pipeline_multi(t_shell *sh, t_pipeline *p);
+int		ms_wait_last(pid_t *pids, int n);
+int		ms_status_to_exit(int status);
+int		ms_stdio_save(int *in, int *out);
+void	ms_stdio_restore(int in, int out);
+void	ms_close_all_pipes(int pipes[][2], int n);
+void	exec_cmd(t_cmd *cmd, char **envp);
+
+/* path utils */
+char	*resolve_path(const char *cmd, char **envp);
+char	*get_env_value(char *name, char **envp);
+void	free_split(char **arr);
+
+/* redirections */
+int		apply_redirections(t_shell *sh, t_cmd *cmd);
+
+/* heredoc */
+int		heredoc_open(t_shell *sh, const char *limiter, int expander);
+
+/* pipes */
+void	child_run_pipeline_cmd(t_shell *sh, t_pipeline *p,
+			int i, int pipes[][2]);
+
+/* builtins */
+int		is_builtin(const char *name);
+int		is_parent_builtin(const char *name);
+int		run_builtin(t_shell *sh, t_cmd *cmd);
+
+int		bi_echo(t_cmd *cmd);
+int		bi_pwd(void);
+int		bi_env(t_shell *sh);
+int		bi_cd(t_shell *sh, t_cmd *cmd);
+int		bi_export(t_shell *sh, t_cmd *cmd);
+int		bi_unset(t_shell *sh, t_cmd *cmd);
+int		bi_exit(t_shell *sh, t_cmd *cmd);
+
+int		ms_is_strict_number(const char *s);
+int		ms_atoll_checked(const char *s, long long *out);
+int		ms_is_digit(char c);
+int		ms_is_space(char c);
+
+/* env helpers */
+char	**env_copy(char **envp);
+char	*env_get(char **envp, const char *name);
+int		env_set(t_shell *sh, const char *name, const char *value);
+int		env_unset(t_shell *sh, const char *name);
+void	env_print(char **envp);
+void	export_print(char **envp);
+
+#endif
+
+==================== includes/minishell.h ====================
+
+/* ************************************************************************** */
+/*                                                                            */
+/*                                                        :::      ::::::::   */
+/*   minishell.h                                        :+:      :+:    :+:   */
+/*                                                    +:+ +:+         +:+     */
+/*   By: lundaevv <lundaevv@student.42.fr>          +#+  +:+       +#+        */
+/*                                                +#+#+#+#+#+   +#+           */
+/*   Created: 2026/01/21 14:26:56 by lundaevv          #+#    #+#             */
+/*   Updated: 2026/01/21 14:39:17 by lundaevv         ###   ########.fr       */
+/*                                                                            */
+/* ************************************************************************** */
+
+#ifndef MINISHELL_H
+# define MINISHELL_H
+
+/* --------------------------------- C libs --------------------------------- */
+
+# include <unistd.h>
+# include <stdlib.h>
+# include <stdbool.h>
+# include <signal.h>
+# include <stdio.h>
+# include <errno.h>
+# include <fcntl.h>
+# include <sys/wait.h>
+# include <limits.h>
+
+/* ------------------------------- Readline --------------------------------- */
+
+# include <readline/readline.h>
+# include <readline/history.h>
+
+/* -------------------------------- Project --------------------------------- */
+
+# include "libft.h"
+# include "ft_printf.h"
+
+# include "ms_errors.h"
+# include "parsing.h"
+# include "execution.h"
+
+/*
+** =============================================================================
+** Core shell state (SINGLE SOURCE OF TRUTH)
+** =============================================================================
+*/
+typedef struct s_shell
+{
+	char	**envp;
+	int		exit_status;
+	int		should_exit;
+}	t_shell;
+
+/*
+** =============================================================================
+** Shell loop
+** =============================================================================
+*/
+void	shell_loop(t_shell *shell);
+
+/*
+** =============================================================================
+** Loop utils
+** =============================================================================
+*/
+int		is_exit_command(const char *line);
+int		handle_history_and_exit(t_shell *shell, char *line);
+int		handle_expand_error(t_token **tokens, char *line);
+
+/*
+** =============================================================================
+** Debug (core-level)
+** =============================================================================
+*/
+void	ms_debug_state(t_shell *shell, const char *line,
+			t_token *tokens, t_pipeline *p);
+
+#endif
+
+==================== includes/ms_errors.h ====================
+
+#ifndef MS_ERRORS_H
+# define MS_ERRORS_H
+
+/*
+** Minishell exit status codes (bash-compatible)
+*/
+
+# define MS_SUCCESS 0
+
+# define MS_GENERAL_ERROR 1
+# define MS_SYNTAX_ERROR 2
+
+# define MS_CMD_NOT_FOUND 127
+# define MS_CMD_NOT_EXECUTABLE 126
+
+# define MS_SIGINT 130
+# define MS_SIGQUIT 131
+
+# define MS_HEREDOC_ABORT 130
+
+#endif
+
+==================== includes/parsing.h ====================
+
+/* ************************************************************************** */
+/*                                                                            */
+/*                                                        :::      ::::::::   */
+/*   parsing.h                                          :+:      :+:    :+:   */
+/*                                                    +:+ +:+         +:+     */
+/*   By: lundaevv <lundaevv@student.42.fr>          +#+  +:+       +#+        */
+/*                                                +#+#+#+#+#+   +#+           */
+/*   Created: 2025/12/17 21:44:33 by lundaevv          #+#    #+#             */
+/*   Updated: 2026/01/20 15:48:21 by lundaevv         ###   ########.fr       */
+/*                                                                            */
+/* ************************************************************************** */
+
+#ifndef PARSING_H
+# define PARSING_H
+
+# include <stdbool.h>
+# include <stdlib.h>
+
+/*
+** ============================================================================
+** PARSER -> EXEC CONTRACT
+** ============================================================================
+**
+** Ownership / lifetime:
+** - Parser allocates all memory inside t_pipeline/t_cmd:
+**     - argv strings
+**     - redirs targets
+**     - argv/redirs arrays
+** - Executor must NOT free individual fields.
+** - Use free_pipeline() to free everything returned by the parser.
+**
+** Segmentation rules:
+** - Each t_cmd is built from tokens up to (but not including) TOKEN_PIPE.
+** - Redirections belong only to the command segment where they appear.
+**
+** t_cmd (argv):
+** - argv is ALWAYS non-NULL on successful parse.
+** - argv is a NULL-terminated array of malloc'ed strings.
+** - Empty strings are valid arguments (e.g. "" or '').
+** - For an empty command (no WORD tokens excluding redirs):
+**     argv[0] == NULL
+**
+** t_cmd (redirs):
+** - redirs follows a strict count/pointer contract:
+**     - if redir_count == 0  -> redirs == NULL
+**     - if redir_count  > 0  -> redirs points to a malloc'ed array
+** - Each redirs[i].target is malloc'ed and owned by the parser.
+**
+** t_pipeline:
+** - cmds is a malloc'ed array of size cmd_count.
+** - On successful parse:
+**     - cmd_count >= 1
+**     - cmds != NULL
+**
+** Failure behavior:
+** - On parse failure parse_pipeline() returns NULL.
+** - Parser must not leak memory on failure.
+**
+** ============================================================================
+** REDIRECTION SEMANTICS (executor rules)
+** ============================================================================
+**
+** Redirs are applied from left to right.
+** The LAST redirection of a given stream wins.
+**
+** Examples (stdin):
+** - cmd << A << B       -> stdin is heredoc B (A is still read/consumed)
+** - cmd < in << A       -> stdin is heredoc A
+** - cmd << A < in       -> stdin is file "in"
+**
+** ============================================================================
+** HEREDOC CONTRACT (<< limiter)
+** ============================================================================
+**
+** Parser responsibilities:
+** - For TOKEN_HEREDOC, parser creates one redirection:
+**     redir.type   = REDIR_HEREDOC
+**     redir.target = limiter string (malloc'ed, quotes removed)
+**
+** - redir.heredoc_expand is set based on limiter quoting:
+**     - true  if limiter token had NO quotes
+**     - false if limiter token contained ANY quotes (', ")
+**
+** - Quotes around limiter MUST be removed in redir.target.
+**   Examples:
+**     << EOF         -> target="EOF",    heredoc_expand=true
+**     << 'EOF'       -> target="EOF",    heredoc_expand=false
+**     << "$USER"     -> target="$USER",  heredoc_expand=false
+**     << "E'O'F"     -> target="E'O'F",  heredoc_expand=false
+**
+** - Limiter itself is NEVER expanded by the parser.
+**
+** Executor responsibilities:
+** - Executor must process heredocs in the SAME order as redirs[].
+** - For each REDIR_HEREDOC:
+**     - read lines until a line equals redir.target exactly
+**     - if redir.heredoc_expand == true:
+**         expand $VAR and $? inside heredoc body (bash-like)
+**     - if redir.heredoc_expand == false:
+**         heredoc body is literal (NO expansions)
+**
+** - If multiple heredocs exist in one command:
+**     - executor must READ/CONSUME all of them
+**     - stdin must be connected to the LAST heredoc after all redirs
+**
+** Signals:
+** - If Ctrl-C happens while reading heredoc:
+**     - stop heredoc reading immediately
+**     - set last exit status to 130
+**     - do NOT execute the pipeline/commands
+**
+** Memory:
+** - All memory in redir.target is owned by the parser and freed by
+**   free_pipeline().
+*/
+
+typedef struct s_shell	t_shell;
+
+/*
+** =============================================================================
+** Token layer (lexer output)
+** =============================================================================
+*/
+typedef enum e_token_type
+{
+	TOKEN_WORD,
+	TOKEN_PIPE,
+	TOKEN_REDIR_IN,
+	TOKEN_REDIR_OUT,
+	TOKEN_REDIR_APPEND,
+	TOKEN_HEREDOC
+}						t_token_type;
+
+typedef struct s_token
+{
+	char				*value;
+	t_token_type		type;
+	bool				has_quotes;
+	struct s_token		*next;
+}						t_token;
+
+/*
+** =============================================================================
+** Parser output (execution input)
+** =============================================================================
+*/
+typedef enum e_redir_type
+{
+	REDIR_IN,
+	REDIR_OUT,
+	REDIR_APPEND,
+	REDIR_HEREDOC
+}						t_redir_type;
+
+typedef struct s_redir
+{
+	t_redir_type		type;
+	char				*target;
+	bool				heredoc_expand;
+}						t_redir;
+
+typedef struct s_cmd
+{
+	char				**argv;
+	t_redir				*redirs;
+	int					redir_count;
+}						t_cmd;
+
+typedef struct s_pipeline
+{
+	t_cmd				*cmds;
+	int					cmd_count;
+}						t_pipeline;
+
+/* ============================ LINE RUNNER ================================= */
+
+int						run_line(t_shell *shell, char *line);
+int						line_build_state(t_shell *shell, char *line,
+							t_token **out_tokens, t_pipeline **out_p);
+int						handle_unclosed_quotes(t_shell *shell, char *line);
+int						is_only_spaces(const char *s);
+
+/* =============================== LEXER ==================================== */
+
+t_token					*lexer_tokenize(const char *line);
+t_token					*lexer_read_operator(const char *line, int *i);
+t_token					*lexer_read_word(const char *line, int *i);
+
+t_token					*token_new(char *value, t_token_type type);
+void					token_add_back(t_token **list, t_token *new_node);
+void					token_list_print(t_token *list);
+void					token_list_clear(t_token **list);
+int						is_space(char c);
+
+/* ============================== EXPANDER ================================== */
+
+int						expand_tokens(t_token *list, char **envp,
+							int last_exit_status);
+
+char					*ms_expand_unquote(const char *src, char **envp,
+							int last_status);
+int						ms_expand_run(char *dst, const char *src, void **ctx);
+size_t					ms_expanded_len(const char *src, char **envp,
+							int last_status);
+
+char					*ms_unquote_limiter(const char *src);
+int						ms_quote_step_i(const char *s, int *i, char *q);
+int						ms_quote_step_p(const char **p, char *q);
+
+int						ms_is_var_start(char c);
+int						ms_is_var_char(char c);
+int						ms_var_name_len(const char *s);
+char					*ms_get_env_value(const char *name, int len,
+							char **envp);
+
+/* =============================== SYNTAX =================================== */
+
+int						validate_syntax(t_token *token);
+
+/* =============================== PARSER =================================== */
+
+t_pipeline				*parse_pipeline(t_token *tokens);
+int						build_pipeline_cmds(t_pipeline *p, t_token *tokens);
+
+int						count_commands(t_token *tokens);
+void					init_cmd_array(t_cmd *cmds, int count);
+void					free_pipeline(t_pipeline *p);
+
+/* argv */
+char					**build_argv_simple(t_token *tokens);
+int						count_words_simple(t_token *tokens);
+int						count_words_no_redirs(t_token *tokens);
+int						free_argv_partial(char **argv, int filled);
+void					skip_redir_pair(t_token **cur);
+
+/* redirs */
+int						is_redir_token(t_token_type type);
+int						count_redirs_simple(t_token *tokens);
+int						token_to_redir_type(t_token_type t, t_redir_type *out);
+t_redir					*build_redirs_simple(t_token *tokens, int *out_count);
+
+/* =============================== DEBUG ==================================== */
+/*
+** ВАЖНО:
+** parsing.h не знает о t_shell.
+** Debug, который печатает shell, объявляется в minishell.h.
+*/
+void					ms_debug_counts(t_token *tokens);
+void					ms_debug_pipeline(const t_pipeline *p);
+
+#endif
+
+==================== src/builtin/builtin.c ====================
+
+#include "minishell.h"
+
+/*
+** Small helper: strict string equality.
+** Returns 1 if strings are identical, else 0.
+*/
+static int	str_eq(const char *a, const char *b)
+{
+	size_t	la;
+	size_t	lb;
+
+	if (!a || !b)
+		return (0);
+	la = ft_strlen(a);
+	lb = ft_strlen(b);
+	if (la != lb)
+		return (0);
+	return (ft_strncmp(a, b, la) == 0);
+}
+
+/*
+** True for any builtin we support.
+** Used in children and pipelines (builtins can run in child too).
+*/
+int	is_builtin(const char *name)
+{
+	if (!name)
+		return (0);
+	return (str_eq(name, "echo")
+		|| str_eq(name, "cd")
+		|| str_eq(name, "pwd")
+		|| str_eq(name, "export")
+		|| str_eq(name, "unset")
+		|| str_eq(name, "env")
+		|| str_eq(name, "exit"));
+}
+
+/*
+** Builtins that MUST run in the parent process because they change shell state:
+** - cd changes cwd
+** - export/unset changes env
+** - exit changes should_exit
+*/
+int	is_parent_builtin(const char *name)
+{
+	if (!name)
+		return (0);
+	return (str_eq(name, "cd")
+		|| str_eq(name, "export")
+		|| str_eq(name, "unset")
+		|| str_eq(name, "exit"));
+}
+
+/*
+** Dispatch builtin execution.
+** Returns the builtin's exit status.
+*/
+int	run_builtin(t_shell *sh, t_cmd *cmd)
+{
+	const char	*name;
+
+	if (!cmd || !cmd->argv || !cmd->argv[0])
+		return (1);
+	name = cmd->argv[0];
+	if (str_eq(name, "echo"))
+		return (bi_echo(cmd));
+	if (str_eq(name, "pwd"))
+		return (bi_pwd());
+	if (str_eq(name, "env"))
+		return (bi_env(sh));
+	if (str_eq(name, "cd"))
+		return (bi_cd(sh, cmd));
+	if (str_eq(name, "export"))
+		return (bi_export(sh, cmd));
+	if (str_eq(name, "unset"))
+		return (bi_unset(sh, cmd));
+	if (str_eq(name, "exit"))
+		return (bi_exit(sh, cmd));
+	return (1);
+}
+
+
+
+
+==================== src/builtin/builtin_cd.c ====================
+
+#include "minishell.h"
+
+static int	cd_get_target(t_shell *sh, t_cmd *cmd, char **out)
+{
+	*out = NULL;
+	if (cmd && cmd->argv)
+		*out = cmd->argv[1];
+	if (!*out)
+		*out = env_get(sh->envp, "HOME");
+	if (!*out)
+	{
+		ft_putstr_fd("cd: HOME not set\n", 2);
+		return (1);
+	}
+	return (0);
+}
+
+static void	cd_update_pwd(t_shell *sh, const char *oldpwd)
+{
+	char	newpwd[4096];
+
+	if (getcwd(newpwd, sizeof(newpwd)))
+	{
+		env_set(sh, "OLDPWD", oldpwd);
+		env_set(sh, "PWD", newpwd);
+	}
+}
+
+int	bi_cd(t_shell *sh, t_cmd *cmd)
+{
+	char	*path;
+	char	oldpwd[4096];
+
+	if (!sh)
+		return (1);
+	if (!getcwd(oldpwd, sizeof(oldpwd)))
+		oldpwd[0] = '\0';
+	if (cd_get_target(sh, cmd, &path) != 0)
+		return (1);
+	if (chdir(path) != 0)
+	{
+		perror("cd");
+		return (1);
+	}
+	cd_update_pwd(sh, oldpwd);
+	return (0);
+}
+
+
+
+==================== src/builtin/builtin_echo.c ====================
+
+#include "minishell.h"
+
+static int	is_echo_n(const char *s)
+{
+	if (!s)
+		return (0);
+	return (ft_strncmp(s, "-n", 3) == 0);
+}
+
+int	bi_echo(t_cmd *cmd)
+{
+	int	i;
+	int	newline;
+
+	i = 1;
+	newline = 1;
+	if (!cmd || !cmd->argv)
+		return (0);
+	if (is_echo_n(cmd->argv[1]))
+	{
+		newline = 0;
+		i = 2;
+	}
+	while (cmd->argv[i])
+	{
+		write(1, cmd->argv[i], ft_strlen(cmd->argv[i]));
+		if (cmd->argv[i + 1])
+			write(1, " ", 1);
+		i++;
+	}
+	if (newline)
+		write(1, "\n", 1);
+	return (0);
+}
+
+
+==================== src/builtin/builtin_exit.c ====================
+
+#include "minishell.h"
+
+static void	print_num_required(const char *arg)
+{
+	ft_putstr_fd("minishell: exit: ", 2);
+	ft_putstr_fd((char *)arg, 2);
+	ft_putstr_fd(": numeric argument required\n", 2);
+}
+
+static void	print_too_many(void)
+{
+	ft_putstr_fd("minishell: exit: too many arguments\n", 2);
+}
+
+int	bi_exit(t_shell *sh, t_cmd *cmd)
+{
+	long long	n;
+
+	if (!sh || !cmd || !cmd->argv || !cmd->argv[0])
+		return (1);
+	if (!cmd->argv[1])
+	{
+		sh->should_exit = 1;
+		return (sh->exit_status);
+	}
+	if (!ms_atoll_checked(cmd->argv[1], &n))
+	{
+		print_num_required(cmd->argv[1]);
+		sh->should_exit = 1;
+		return (255);
+	}
+	if (cmd->argv[2])
+	{
+		print_too_many();
+		return (1);
+	}
+	sh->should_exit = 1;
+	return ((unsigned char)n);
+}
+
+
+==================== src/builtin/builtin_export_unset.c ====================
+
+#include "minishell.h"
+
+/*
+** Export one argument.
+** Supported:
+** - KEY=VALUE
+** - KEY          (sets KEY to empty string, minimal behavior)
+*/
+static int	export_one(t_shell *sh, char *arg)
+{
+	char	*eq;
+	char	*name;
+	int		ret;
+
+	eq = ft_strchr(arg, '=');
+	if (!eq)
+		return (env_set(sh, arg, ""));
+	name = ft_substr(arg, 0, (size_t)(eq - arg));
+	if (!name)
+		return (1);
+	ret = env_set(sh, name, eq + 1);
+	free(name);
+	return (ret);
+}
+
+/* minimal: no printing/sorting yet */
+int	bi_export(t_shell *sh, t_cmd *cmd)
+{
+	int	i;
+	int	ret;
+
+	if (!cmd || !cmd->argv || !cmd->argv[1])
+		return (0);
+	i = 1;
+	ret = 0;
+	while (cmd->argv[i])
+	{
+		if (export_one(sh, cmd->argv[i]) != 0)
+			ret = 1;
+		i++;
+	}
+	return (ret);
+}
+
+int	bi_unset(t_shell *sh, t_cmd *cmd)
+{
+	int	i;
+	int	ret;
+
+	if (!cmd || !cmd->argv || !cmd->argv[1])
+		return (0);
+	i = 1;
+	ret = 0;
+	while (cmd->argv[i])
+	{
+		if (env_unset(sh, cmd->argv[i]) != 0)
+			ret = 1;
+		i++;
+	}
+	return (ret);
+}
+
+
+==================== src/builtin/builtin_pwd_env.c ====================
+
+#include "minishell.h"
+
+int	bi_pwd(void)
+{
+	char	buf[4096];
+
+	if (!getcwd(buf, sizeof(buf)))
+	{
+		perror("pwd");
+		return (1);
+	}
+	write(STDOUT_FILENO, buf, ft_strlen(buf));
+	write(STDOUT_FILENO, "\n", 1);
+	return (0);
+}
+
+int	bi_env(t_shell *sh)
+{
+	if (!sh)
+		return (1);
+	env_print(sh->envp);
+	return (0);
+}
+
+
+
+==================== src/builtin/exit_atoll.c ====================
+
+#include "minishell.h"
+
+static int	parse_sign(const char *s, int *i)
+{
+	int	sign;
+
+	sign = 1;
+	if (s[*i] == '+' || s[*i] == '-')
+	{
+		if (s[*i] == '-')
+			sign = -1;
+		(*i)++;
+	}
+	return (sign);
+}
+
+static int	accumulate_digits(const char *s, int *i,
+	unsigned long long *acc, int sign)
+{
+	while (ms_is_digit(s[*i]))
+	{
+		*acc = *acc * 10ULL + (s[*i] - '0');
+		if (sign == 1 && *acc > (unsigned long long)LLONG_MAX)
+			return (0);
+		if (sign == -1 && *acc > (unsigned long long)LLONG_MAX + 1ULL)
+			return (0);
+		(*i)++;
+	}
+	return (1);
+}
+int	ms_atoll_checked(const char *s, long long *out)
+{
+	int					i;
+	int					sign;
+	unsigned long long	acc;
+
+	if (!ms_is_strict_number(s) || !out)
+		return (0);
+	i = 0;
+	while (ms_is_space(s[i]))
+		i++;
+	sign = parse_sign(s, &i);
+	acc = 0;
+	if (!accumulate_digits(s, &i, &acc, sign))
+		return (0);
+	if (sign == -1 && acc == (unsigned long long)LLONG_MAX + 1ULL)
+		*out = LLONG_MIN;
+	else
+		*out = (long long)acc * sign;
+	return (1);
+}
+
+
+
+==================== src/builtin/exit_num_utils.c ====================
+
+#include "minishell.h"
+
+int ms_is_space(char c)
+{
+    return (c == ' ' || c == '\t' || c == '\n'
+        || c == '\v' || c == '\f' || c == '\r');
+}
+
+int ms_is_digit(char c)
+{
+    return (c >= '0' && c <= '9');
+}
+
+int ms_is_strict_number(const char *s)
+{
+    int i;
+
+    if (!s)
+        return (0);
+    i = 0;
+    while (ms_is_space(s[i]))
+        i++;
+    if (s[i] == '+' || s[i] == '-')
+        i++;
+    if (!ms_is_digit(s[i]))
+        return (0);
+    while (ms_is_digit(s[i]))
+        i++;
+    while (ms_is_space(s[i]))
+        i++;
+    return (s[i] == '\0');
+}
+
+
+
+==================== src/core/line_quotes.c ====================
+
+/* ************************************************************************** */
+/*                                                                            */
+/*                                                        :::      ::::::::   */
+/*   line_quotes.c                                      :+:      :+:    :+:   */
+/*                                                    +:+ +:+         +:+     */
+/*   By: lundaevv <lundaevv@student.42.fr>          +#+  +:+       +#+        */
+/*                                                +#+#+#+#+#+   +#+           */
+/*   Created: 2025/12/18 14:08:29 by vlundaev          #+#    #+#             */
+/*   Updated: 2026/01/20 15:16:48 by lundaevv         ###   ########.fr       */
+/*                                                                            */
+/* ************************************************************************** */
+
+#include "minishell.h"
+
+static int	has_unclosed_quotes(const char *line)
+{
+	int		i;
+	char	q;
+
+	i = 0;
+	q = 0;
+	while (line && line[i])
+	{
+		if (!q && (line[i] == '\'' || line[i] == '"'))
+			q = line[i];
+		else if (q && line[i] == q)
+			q = 0;
+		i++;
+	}
+	return (q != 0);
+}
+
+int	handle_unclosed_quotes(t_shell *shell, char *line)
+{
+	if (!has_unclosed_quotes(line))
+		return (0);
+	ft_putendl_fd("minishell: syntax error: unclosed quotes", STDERR_FILENO);
+	shell->exit_status = 2;
+	return (1);
+}
+
+
+==================== src/core/line_runner.c ====================
+
+/* ************************************************************************** */
+/*                                                                            */
+/*                                                        :::      ::::::::   */
+/*   line_runner.c                                      :+:      :+:    :+:   */
+/*                                                    +:+ +:+         +:+     */
+/*   By: lundaevv <lundaevv@student.42.fr>          +#+  +:+       +#+        */
+/*                                                +#+#+#+#+#+   +#+           */
+/*   Created: 2025/12/17 21:01:55 by lundaevv          #+#    #+#             */
+/*   Updated: 2026/01/21 14:04:43 by lundaevv         ###   ########.fr       */
+/*                                                                            */
+/* ************************************************************************** */
+
+#include "minishell.h"
+
+static void	cut_first_newline(char *line)
+{
+	char	*nl;
+
+	if (!line)
+		return ;
+	nl = ft_strchr(line, '\n');
+	if (nl)
+		*nl = '\0';
+}
+
+static void	cleanup_line(char *line, t_token **tokens, t_pipeline **p)
+{
+	if (p && *p)
+		free_pipeline(*p);
+	if (tokens && *tokens)
+		token_list_clear(tokens);
+	if (line)
+		free(line);
+}
+
+int	run_line(t_shell *shell, char *line)
+{
+	t_token		*tokens;
+	t_pipeline	*p;
+	int			rc;
+
+	tokens = NULL;
+	p = NULL;
+	rc = 0;
+	cut_first_newline(line);
+	if (is_only_spaces(line))
+		return (free(line), 0);
+	if (handle_history_and_exit(shell, line))
+		return (free(line), 1);
+	if (handle_unclosed_quotes(shell, line))
+		return (free(line), 0);
+	rc = line_build_state(shell, line, &tokens, &p);
+	if (rc != 0)
+		return (cleanup_line(line, &tokens, &p), 0);
+	exec_pipeline(shell, p);
+	cleanup_line(line, &tokens, &p);
+	return (0);
+}
+
+
+==================== src/core/line_steps.c ====================
+
+/* ************************************************************************** */
+/*                                                                            */
+/*                                                        :::      ::::::::   */
+/*   line_steps.c                                       :+:      :+:    :+:   */
+/*                                                    +:+ +:+         +:+     */
+/*   By: lundaevv <lundaevv@student.42.fr>          +#+  +:+       +#+        */
+/*                                                +#+#+#+#+#+   +#+           */
+/*   Created: 2025/12/17 21:06:45 by lundaevv          #+#    #+#             */
+/*   Updated: 2026/01/21 14:30:34 by lundaevv         ###   ########.fr       */
+/*                                                                            */
+/* ************************************************************************** */
+
+#include "minishell.h"
+
+static int	step_lex(char *line, t_token **tokens)
+{
+	*tokens = lexer_tokenize(line);
+	if (!*tokens)
+		return (2);
+	return (0);
+}
+
+static int	step_expand(t_shell *shell, char *line, t_token **tokens)
+{
+	if (expand_tokens(*tokens, shell->envp, shell->exit_status) != 0)
+		return (handle_expand_error(tokens, line));
+	return (0);
+}
+
+static int	step_syntax(t_shell *shell, char *line, t_token **tokens)
+{
+	(void)line;
+	if (!validate_syntax(*tokens))
+		return (0);
+	shell->exit_status = 2;
+	token_list_clear(tokens);
+	return (2);
+}
+
+static void	step_parse_and_debug(t_shell *shell, char *line,
+				t_token *tokens, t_pipeline **p)
+{
+	*p = parse_pipeline(tokens);
+	ms_debug_counts(tokens);
+	ms_debug_state(shell, line, tokens, *p);
+}
+
+int	line_build_state(t_shell *shell, char *line, t_token **out_tokens,
+			t_pipeline **out_p)
+{
+	t_token		*tokens;
+	t_pipeline	*p;
+	int			rc;
+
+	*out_tokens = NULL;
+	*out_p = NULL;
+	rc = step_lex(line, &tokens);
+	if (rc != 0)
+		return (rc);
+	rc = step_expand(shell, line, &tokens);
+	if (rc != 0)
+		return (rc);
+	rc = step_syntax(shell, line, &tokens);
+	if (rc != 0)
+		return (rc);
+	step_parse_and_debug(shell, line, tokens, &p);
+	*out_tokens = tokens;
+	*out_p = p;
+	return (0);
+}
+
+
+==================== src/core/loop_utils.c ====================
+
+/* ************************************************************************** */
+/*                                                                            */
+/*                                                        :::      ::::::::   */
+/*   loop_utils.c                                       :+:      :+:    :+:   */
+/*                                                    +:+ +:+         +:+     */
+/*   By: lundaevv <lundaevv@student.42.fr>          +#+  +:+       +#+        */
+/*                                                +#+#+#+#+#+   +#+           */
+/*   Created: 2025/12/11 19:31:31 by vlundaev          #+#    #+#             */
+/*   Updated: 2026/01/20 15:39:42 by lundaevv         ###   ########.fr       */
+/*                                                                            */
+/* ************************************************************************** */
+
+#include "minishell.h"
+
+int	is_only_spaces(const char *s)
+{
+	int	i;
+
+	if (!s)
+		return (1);
+	i = 0;
+	while (s[i])
+	{
+		if (s[i] != ' ' && s[i] != '\t')
+			return (0);
+		i++;
+	}
+	return (1);
+}
+
+/*
+* Return 1 if the line should be treated as an "exit" command.
+* For now we handle:
+*   - "exit"
+*   - "exit" followed by a space and anything else.
+*/
+int	is_exit_command(const char *line)
+{
+	if (!line || line[0] == '\0')
+		return (0);
+	if (ft_strncmp(line, "exit", 4) != 0)
+		return (0);
+	if (line[4] != '\0' && line[4] != ' ')
+		return (0);
+	return (1);
+}
+
+/*
+** Return 1 if we should exit the shell after this line.
+** Also handles history and freeing line in that case.
+*/
+int	handle_history_and_exit(t_shell *shell, char *line)
+{
+	if (!line || is_only_spaces(line))
+		return (0);
+	add_history(line);
+	if (is_exit_command(line))
+	{
+		shell->exit_status = 0;
+		clear_history();
+		return (1);
+	}
+	return (0);
+}
+
+/*
+** Common cleanup path when expand_tokens fails.
+*/
+int	handle_expand_error(t_token **tokens, char *line)
+{
+	(void)line;
+	if (tokens && *tokens)
+		token_list_clear(tokens);
+	return (2);
+}
+
+
+==================== src/env/env.c ====================
+
+#include "minishell.h"
+
+char **env_copy(char **envp)
+{
+    int i = 0;
+    while (envp && envp[i])
+        i++;
+
+    char **copy = malloc(sizeof(char *) * (i + 1));
+    if (!copy)
+        return NULL;
+
+    i = 0;
+    while (envp && envp[i])
+    {
+        copy[i] = ft_strdup(envp[i]);
+        if (!copy[i])
+        {
+            while (i > 0)
+                free(copy[--i]);
+            free(copy);
+            return NULL;
+        }
+        i++;
+    }
+    copy[i] = NULL;
+    return copy;
+}
+
+char *env_get(char **envp, const char *name)
+{
+    size_t n = ft_strlen(name);
+    int i = 0;
+
+    while (envp && envp[i])
+    {
+        if (ft_strncmp(envp[i], name, n) == 0 && envp[i][n] == '=')
+            return envp[i] + n + 1;
+        i++;
+    }
+    return NULL;
+}
+
+void env_print(char **envp)
+{
+    int i = 0;
+    while (envp && envp[i])
+    {
+        /* env prints only KEY=VALUE lines */
+        if (ft_strchr(envp[i], '='))
+        {
+            write(STDOUT_FILENO, envp[i], ft_strlen(envp[i]));
+            write(STDOUT_FILENO, "\n", 1);
+        }
+        i++;
+    }
+}
+
+
+==================== src/env/env_utils.c ====================
+
+#include "minishell.h"
+
+static int env_count(char **envp)
+{
+    int i = 0;
+    while (envp && envp[i])
+        i++;
+    return i;
+}
+
+static int env_find_index(char **envp, const char *name)
+{
+    size_t n;
+    int i;
+
+    if (!envp || !name)
+        return -1;
+    n = ft_strlen(name);
+    i = 0;
+    while (envp[i])
+    {
+        if (ft_strncmp(envp[i], name, n) == 0 && envp[i][n] == '=')
+            return i;
+        i++;
+    }
+    return -1;
+}
+
+static char *make_kv(const char *name, const char *value)
+{
+    char *tmp;
+    char *kv;
+
+    tmp = ft_strjoin(name, "=");
+    if (!tmp)
+        return NULL;
+    kv = ft_strjoin(tmp, value ? value : "");
+    free(tmp);
+    return kv;
+}
+
+int env_set(t_shell *sh, const char *name, const char *value)
+{
+    int idx;
+    int count;
+    char *kv;
+    char **newenv;
+
+    if (!sh || !sh->envp || !name || !*name)
+        return 1;
+
+    kv = make_kv(name, value);
+    if (!kv)
+        return 1;
+
+    idx = env_find_index(sh->envp, name);
+    if (idx >= 0)
+    {
+        free(sh->envp[idx]);
+        sh->envp[idx] = kv;
+        return 0;
+    }
+
+    count = env_count(sh->envp);
+    newenv = malloc(sizeof(char *) * (count + 2));
+    if (!newenv)
+    {
+        free(kv);
+        return 1;
+    }
+
+    for (int i = 0; i < count; i++)
+        newenv[i] = sh->envp[i];
+    newenv[count] = kv;
+    newenv[count + 1] = NULL;
+
+    free(sh->envp);
+    sh->envp = newenv;
+    return 0;
+}
+
+int env_unset(t_shell *sh, const char *name)
+{
+    int idx;
+    int count;
+
+    if (!sh || !sh->envp || !name || !*name)
+        return 0;
+
+    idx = env_find_index(sh->envp, name);
+    if (idx < 0)
+        return 0;
+
+    count = env_count(sh->envp);
+    free(sh->envp[idx]);
+
+    for (int i = idx; i < count; i++)
+        sh->envp[i] = sh->envp[i + 1];
+    return 0;
+}
+
+
+
+==================== src/exec/exec_child.c ====================
+
+#include "minishell.h"
+
+/*
+This file contains the function that runs inside EACH child process of a pipeline.
+
+It is called only from exec_pipeline_multi() after fork():
+
+    if (pids[i] == 0)
+        child_run_pipeline_cmd(sh, p, i, pipes);
+
+So: this code never runs in the parent.
+It always runs in the forked child process.
+
+Goal of this function:
+1) Connect pipes to stdin/stdout for this command (dup2)
+2) Close ALL pipe fds (child must not keep extra fds open)
+3) Apply redirections (< > >> <<)
+   IMPORTANT: redirections override pipes if both exist
+4) Run builtins or external command
+5) If something fails -> exit with correct status
+
+PIPELINE EXAMPLE:
+    cmd0 | cmd1 | cmd2
+
+- cmd0:
+    stdin  = normal
+    stdout = pipes[0][1]
+- cmd1:
+    stdin  = pipes[0][0]
+    stdout = pipes[1][1]
+- cmd2:
+    stdin  = pipes[1][0]
+    stdout = normal
+ */
+
+void child_run_pipeline_cmd(t_shell *sh, t_pipeline *p, int i, int pipes[][2])
+{
+    int     pipe_count;
+    int     k;
+    t_cmd   *cmd;
+
+    /* Child process must have default Ctrl-C / Ctrl-\ behavior
+       (parent ignores signals, child must be killable like bash). */
+    signals_child_exec();
+
+    cmd = &p->cmds[i];
+    pipe_count = p->cmd_count - 1;
+
+    /*
+    1) CONNECT STDIN FROM PREVIOUS PIPE (if not the first command)
+
+    If i > 0, this command should read from the previous pipe's READ end.
+    dup2 replaces STDIN_FILENO with that pipe fd.
+    */
+    if (i > 0)
+    {
+        if (dup2(pipes[i - 1][0], STDIN_FILENO) < 0)
+        {
+            perror("dup2");
+            exit(1);
+        }
+    }
+
+    /*
+    2) CONNECT STDOUT TO NEXT PIPE (if not the last command)
+
+    If i < last, this command should write into the next pipe's WRITE end.
+    dup2 replaces STDOUT_FILENO with that pipe fd.
+    */
+    if (i < p->cmd_count - 1)
+    {
+        if (dup2(pipes[i][1], STDOUT_FILENO) < 0)
+        {
+            perror("dup2");
+            exit(1);
+        }
+    }
+
+    /*
+    3) CLOSE ALL PIPE FDS IN CHILD
+
+    After dup2, we must close ALL pipe fd copies.
+    If we don't close them:
+      - pipes never get EOF
+      - commands like `cat | wc` may hang forever
+    */
+    k = 0;
+    while (k < pipe_count)
+    {
+        close(pipes[k][0]);
+        close(pipes[k][1]);
+        k++;
+    }
+
+    /*
+    4) APPLY REDIRECTIONS
+
+    This is done AFTER pipe dup2 on purpose.
+    Why? Because redirections must override pipes:
+
+        echo hi | cat > out.txt
+
+    For cmd "cat": stdout first becomes pipe, then > out.txt replaces it.
+    So output goes to file, not to the pipe.
+
+    apply_redirections() returns:
+      0   -> ok
+      1   -> general error
+      130 -> heredoc was canceled by Ctrl-C
+    We exit with that status so parent gets correct exit_status.
+    */
+    {
+        int r = apply_redirections(sh, cmd);
+        if (r != 0)
+            exit(r);
+    }
+
+    /*
+    5) EXECUTE COMMAND
+
+    In a pipeline, builtins must run inside child because they should NOT
+    affect the parent shell state. Example:
+
+        export X=1 | cat
+
+    If export ran in parent, X would remain set, but bash does NOT do that.
+    So in pipeline: builtins run like normal child commands (exit with status).
+    */
+    if (cmd->argv && cmd->argv[0] && is_builtin(cmd->argv[0]))
+        exit(run_builtin(sh, cmd));
+
+    /*
+    External command:
+    exec_cmd does PATH resolution and execve().
+    If execve fails, exec_cmd must exit with correct code (like 127).
+    */
+    exec_cmd(cmd, sh->envp);
+}
+
+
+
+
+
+==================== src/exec/exec_cmd.c ====================
+
+#include "minishell.h"
+
+/*
+
+This file executes ONE external command (not a builtin).
+
+It is always called from a CHILD process (after fork),
+either:
+    - from exec_pipeline() when p->count == 1
+    - from child_run_pipeline_cmd() when running a pipeline
+
+So this function is allowed to call exit() directly:
+if execve succeeds -> this function never returns
+if execve fails -> we print error and exit with proper code
+
+What parser gives me for each command:
+    cmd->argv = ["ls", "-la", NULL]  (NULL-terminated)
+
+What this function does:
+1) If argv empty -> exit(0)
+2) Resolve the executable path:
+      - if argv[0] contains '/' -> treat as direct path
+      - else search in PATH from envp
+3) If not found -> print "command not found" and exit(127)
+4) If found -> execve(path, argv, envp)
+5) If execve fails -> perror and exit(127)
+
+Exit codes:
+- 127 is the common shell code for "command not found" / exec failure.
+(We can refine later: permission denied is usually 126, but for now ok.)
+
+Memory:
+- resolve_path() returns malloc'ed string -> must be freed if execve fails
+- if execve succeeds -> OS replaces process image, no need to free
+
+ */
+
+static int	ms_exec_error_code(void)
+{
+	if (errno == EACCES || errno == EISDIR)
+		return (126);
+	return (127);
+}
+
+void	exec_cmd(t_cmd *cmd, char **envp)
+{
+	char	*path;
+
+	if (!cmd || !cmd->argv || !cmd->argv[0])
+		exit(0);
+	path = resolve_path(cmd->argv[0], envp);
+	if (!path)
+	{
+		ft_putstr_fd(cmd->argv[0], 2);
+		ft_putstr_fd(": command not found\n", 2);
+		exit(127);
+	}
+	execve(path, cmd->argv, envp);
+	perror(cmd->argv[0]);
+	free(path);
+	exit(ms_exec_error_code());
+}
+
+
+
+==================== src/exec/exec_heredoc.c ====================
+
+#include "minishell.h"
+
+static char	*hd_str_add_char(char *s, char c)
+{
+	char	*new;
+	size_t	len;
+
+	len = 0;
+	if (s)
+		len = ft_strlen(s);
+	new = malloc(len + 2);
+	if (!new)
+		return (free(s), NULL);
+	if (s)
+		ft_memcpy(new, s, len);
+	new[len] = c;
+	new[len + 1] = '\0';
+	free(s);
+	return (new);
+}
+
+static char	*hd_read_line(void)
+{
+	char	*line;
+	char	c;
+	ssize_t	r;
+
+	line = NULL;
+	while (1)
+	{
+		r = read(STDIN_FILENO, &c, 1);
+		if (r <= 0)
+			break ;
+		line = hd_str_add_char(line, c);
+		if (!line)
+			return (NULL);
+		if (c == '\n')
+			break ;
+	}
+	return (line);
+}
+
+static int	hd_is_limiter(char *line, const char *limiter)
+{
+	size_t	n;
+
+	if (!line || !limiter)
+		return (0);
+	n = ft_strlen(limiter);
+	return (ft_strncmp(line, limiter, n) == 0 && line[n] == '\n');
+}
+
+static int	hd_write_line(int wfd, char *line)
+{
+	write(wfd, line, ft_strlen(line));
+	free(line);
+	return (0);
+}
+
+static int	hd_fill(int wfd, t_shell *sh, const char *lim, int expand)
+{
+	char	*line;
+	char	*out;
+
+	while (1)
+	{
+		if (g_signal == SIGINT)
+			return (130);
+		write(STDOUT_FILENO, "> ", 2);
+		line = hd_read_line();
+		if (!line)
+			break ;
+		if (g_signal == SIGINT)
+			return (free(line), 130);
+		if (hd_is_limiter(line, lim))
+			return (free(line), 0);
+		if (!expand)
+			hd_write_line(wfd, line);
+		else
+		{
+			out = ms_expand_unquote(line, sh->envp, sh->exit_status);
+			free(line);
+			if (!out)
+				return (1);
+			hd_write_line(wfd, out);
+		}
+	}
+	return (0);
+}
+
+int	heredoc_open(t_shell *sh, const char *limiter, int expand)
+{
+	int	hd[2];
+	int	ret;
+
+	if (pipe(hd) < 0)
+		return (perror("pipe"), -1);
+	g_signal = 0;
+	ret = hd_fill(hd[1], sh, limiter, expand);
+	close(hd[1]);
+	if (ret == 130)
+		return (close(hd[0]), -130);
+	if (ret != 0)
+		return (close(hd[0]), -1);
+	return (hd[0]);
+}
+
+
+==================== src/exec/exec_pipeline.c ====================
+
+/* ************************************************************************** */
+/*                                                                            */
+/*                                                        :::      ::::::::   */
+/*   exec_pipeline.c                                    :+:      :+:    :+:   */
+/*                                                    +:+ +:+         +:+     */
+/*   By: lundaevv <lundaevv@student.42.fr>          +#+  +:+       +#+        */
+/*                                                +#+#+#+#+#+   +#+           */
+/*   Created: 2026/01/21 14:06:52 by lundaevv          #+#    #+#             */
+/*   Updated: 2026/01/21 14:07:50 by lundaevv         ###   ########.fr       */
+/*                                                                            */
+/* ************************************************************************** */
+
+#include "minishell.h"
+
+int	exec_pipeline(t_shell *sh, t_pipeline *p)
+{
+	if (!p || p->cmd_count <= 0)
+		return (sh->exit_status = 0);
+	if (p->cmd_count == 1)
+		return (exec_pipeline_single(sh, &p->cmds[0]));
+	return (exec_pipeline_multi(sh, p));
+}
+
+
+==================== src/exec/exec_pipeline_multi.c ====================
+
+#include "minishell.h"
+
+void ms_close_all_pipes(int pipes[][2], int n)
+{
+    int i;
+
+    i = 0;
+    while (i < n)
+    {
+        close(pipes[i][0]);
+        close(pipes[i][1]);
+        i++;
+    }
+}
+
+static int make_pipes(int pipes[][2], int n)
+{
+    int i;
+
+    i = 0;
+    while (i < n)
+    {
+        if (pipe(pipes[i]) < 0)
+            return (perror("pipe"), 1);
+        i++;
+    }
+    return (0);
+}
+
+int exec_pipeline_multi(t_shell *sh, t_pipeline *p)
+{
+    int pipe_count;
+    int pipes[1024][2];
+    pid_t pids[1024];
+    int i;
+
+    pipe_count = p->cmd_count - 1;
+    if (pipe_count > 1024 || make_pipes(pipes, pipe_count))
+        return (sh->exit_status = 1);
+    signals_parent_exec();
+    i = 0;
+    while (i < p->cmd_count)
+    {
+        pids[i] = fork();
+        if (pids[i] < 0)
+            return (perror("fork"), ms_close_all_pipes(pipes, pipe_count), 1);
+        if (pids[i] == 0)
+            child_run_pipeline_cmd(sh, p, i, pipes);
+        i++;
+    }
+    ms_close_all_pipes(pipes, pipe_count);
+    sh->exit_status = ms_wait_last(pids, p->cmd_count);
+    signals_interactive();
+    return (sh->exit_status);
+}
+
+
+==================== src/exec/exec_pipeline_single.c ====================
+
+#include "minishell.h"
+
+static int run_parent_builtin(t_shell *sh, t_cmd *cmd)
+{
+    int in;
+    int out;
+    int r;
+
+    /* Bash prints "exit" only when exit is executed in the main shell */
+    if (cmd->argv && cmd->argv[0]
+        && ft_strncmp(cmd->argv[0], "exit", 5) == 0)
+        write(1, "exit\n", 5);
+
+    if (ms_stdio_save(&in, &out))
+        return (sh->exit_status = 1);
+    r = apply_redirections(sh, cmd);
+    if (r == 0)
+        r = run_builtin(sh, cmd);
+    ms_stdio_restore(in, out);
+    return (sh->exit_status = r);
+}
+
+
+static int child_exec(t_shell *sh, t_cmd *cmd)
+{
+    int r;
+
+    signals_child_exec();
+    r = apply_redirections(sh, cmd);
+    if (r != 0)
+        exit(r);
+    if (cmd->argv && cmd->argv[0] && is_builtin(cmd->argv[0]))
+        exit(run_builtin(sh, cmd));
+    exec_cmd(cmd, sh->envp);
+    exit(127);
+}
+
+int exec_pipeline_single(t_shell *sh, t_cmd *cmd)
+{
+    pid_t pid;
+    int status;
+
+    if (cmd->argv && cmd->argv[0] && is_parent_builtin(cmd->argv[0]))
+        return (run_parent_builtin(sh, cmd));
+    signals_parent_exec();
+    pid = fork();
+    if (pid < 0)
+        return (perror("fork"), sh->exit_status = 1);
+    if (pid == 0)
+        child_exec(sh, cmd);
+    waitpid(pid, &status, 0);
+    sh->exit_status = ms_status_to_exit(status);
+    signals_interactive();
+    return (sh->exit_status);
+}
+
+
+==================== src/exec/exec_redirs.c ====================
+
+#include "minishell.h"
+
+static int	open_infile(const char *file)
+{
+	int	fd;
+
+	fd = open(file, O_RDONLY);
+	if (fd < 0)
+		perror(file);
+	return (fd);
+}
+
+static int	open_outfile(const char *file, int append)
+{
+	int	fd;
+	int	flags;
+
+	flags = O_WRONLY | O_CREAT;
+	if (append)
+		flags |= O_APPEND;
+	else
+		flags |= O_TRUNC;
+	fd = open(file, flags, 0644);
+	if (fd < 0)
+		perror(file);
+	return (fd);
+}
+
+static int	dup2_and_close(int fd, int target_fd)
+{
+	if (dup2(fd, target_fd) < 0)
+	{
+		perror("dup2");
+		close(fd);
+		return (1);
+	}
+	close(fd);
+	return (0);
+}
+
+static int	apply_one_redir(t_shell *sh, t_redir *r)
+{
+	int	fd;
+
+	if (r->type == REDIR_IN)
+	{
+		fd = open_infile(r->target);
+		if (fd < 0)
+			return (1);
+		return (dup2_and_close(fd, STDIN_FILENO));
+	}
+	if (r->type == REDIR_OUT)
+	{
+		fd = open_outfile(r->target, 0);
+		if (fd < 0)
+			return (1);
+		return (dup2_and_close(fd, STDOUT_FILENO));
+	}
+	if (r->type == REDIR_APPEND)
+	{
+		fd = open_outfile(r->target, 1);
+		if (fd < 0)
+			return (1);
+		return (dup2_and_close(fd, STDOUT_FILENO));
+	}
+	fd = heredoc_open(sh, r->target, r->heredoc_expand);
+	if (fd == -130)
+		return (130);
+	if (fd < 0)
+		return (1);
+	return (dup2_and_close(fd, STDIN_FILENO));
+}
+
+
+int	apply_redirections(t_shell *sh, t_cmd *cmd)
+{
+	int	i;
+	int	r;
+
+	if (!cmd || cmd->redir_count <= 0 || !cmd->redirs)
+		return (0);
+	i = 0;
+	while (i < cmd->redir_count)
+	{
+		r = apply_one_redir(sh, &cmd->redirs[i]);
+		if (r != 0)
+			return (r);
+		i++;
+	}
+	return (0);
+}
+
+
+==================== src/exec/exec_signals.c ====================
+
+#include "minishell.h"
+#include <readline/readline.h>
+
+volatile sig_atomic_t g_signal = 0;
+
+static void sigint_interactive(int sig)
+{
+    (void)sig;
+    g_signal = SIGINT;
+    write(STDOUT_FILENO, "\n", 1);
+    rl_on_new_line();
+    rl_replace_line("", 0);
+    rl_redisplay();
+}
+
+void signals_interactive(void)
+{
+    struct sigaction sa;
+
+    g_signal = 0;
+    sigemptyset(&sa.sa_mask);
+    sa.sa_flags = SA_RESTART;;
+    sa.sa_handler = sigint_interactive;
+    sigaction(SIGINT, &sa, NULL);
+    sa.sa_handler = SIG_IGN;
+    sigaction(SIGQUIT, &sa, NULL);
+}
+
+void signals_parent_exec(void)
+{
+    struct sigaction sa;
+
+    sigemptyset(&sa.sa_mask);
+    sa.sa_flags = 0;
+    sa.sa_handler = SIG_IGN;
+    sigaction(SIGINT, &sa, NULL);
+    sigaction(SIGQUIT, &sa, NULL);
+}
+
+void signals_child_exec(void)
+{
+    struct sigaction sa;
+
+    sigemptyset(&sa.sa_mask);
+    sa.sa_flags = 0;
+    sa.sa_handler = SIG_DFL;
+    sigaction(SIGINT, &sa, NULL);
+    sigaction(SIGQUIT, &sa, NULL);
+}
+
+
+==================== src/exec/exec_stdio.c ====================
+
+#include "minishell.h"
+
+int ms_stdio_save(int *in, int *out)
+{
+    *in = dup(STDIN_FILENO);
+    *out = dup(STDOUT_FILENO);
+    if (*in < 0 || *out < 0)
+        return (perror("dup"), 1);
+    return (0);
+}
+
+void ms_stdio_restore(int in, int out)
+{
+    dup2(in, STDIN_FILENO);
+    dup2(out, STDOUT_FILENO);
+    close(in);
+    close(out);
+}
+
+
+==================== src/exec/exec_utils.c ====================
+
+#include "minishell.h"
+
+char	*get_env_value(char *name, char **envp)
+{
+	size_t	len;
+	int		i;
+
+	if (!name || !envp)
+		return (NULL);
+
+	len = ft_strlen(name);
+	i = 0;
+	while (envp[i])
+	{
+		if (ft_strncmp(envp[i], name, len) == 0
+			&& envp[i][len] == '=')
+			return (envp[i] + len + 1);
+		i++;
+	}
+	return (NULL);
+}
+
+
+void	free_split(char **arr)
+{
+	int	i;
+
+	if (!arr)
+		return ;
+
+	i = 0;
+	while (arr[i])
+	{
+		free(arr[i]);
+		i++;
+	}
+	free(arr);
+}
+
+
+
+==================== src/exec/exec_wait.c ====================
+
+#include "minishell.h"
+
+int ms_status_to_exit(int status)
+{
+    if (WIFEXITED(status))
+        return (WEXITSTATUS(status));
+    if (WIFSIGNALED(status))
+        return (128 + WTERMSIG(status));
+    return (1);
+}
+
+int ms_wait_last(pid_t *pids, int n)
+{
+    int i;
+    int status;
+    int last;
+
+    last = 1;
+    i = 0;
+    while (i < n)
+    {
+        waitpid(pids[i], &status, 0);
+        if (i == n - 1)
+            last = ms_status_to_exit(status);
+        i++;
+    }
+    return (last);
+}
+
+
+==================== src/exec/path_resolve.c ====================
+
+#include "minishell.h"
+
+static int	ms_has_slash(const char *s)
+{
+	int	i;
+
+	i = 0;
+	while (s && s[i])
+	{
+		if (s[i] == '/')
+			return (1);
+		i++;
+	}
+	return (0);
+}
+
+static char	*ms_join_path(const char *dir, const char *cmd)
+{
+	char	*res;
+	size_t	len;
+
+	len = ft_strlen(dir) + ft_strlen(cmd) + 2;
+	res = malloc(len);
+	if (!res)
+		return (NULL);
+	ft_strlcpy(res, dir, len);
+	ft_strlcat(res, "/", len);
+	ft_strlcat(res, cmd, len);
+	return (res);
+}
+
+char	*resolve_path(const char *cmd, char **envp)
+{
+	char	**paths;
+	char	*path_env;
+	char	*full;
+	int		i;
+
+	if (!cmd || !*cmd)
+		return (NULL);
+	if (ms_has_slash(cmd))
+		return ((access(cmd, X_OK) == 0) ? ft_strdup(cmd) : NULL);
+	path_env = get_env_value("PATH", envp);
+	if (!path_env)
+		return (NULL);
+	paths = ft_split(path_env, ':');
+	i = 0;
+	while (paths && paths[i])
+	{
+		full = ms_join_path(paths[i++], cmd);
+		if (full && access(full, X_OK) == 0)
+			return (free_split(paths), full);
+		free(full);
+	}
+	return (free_split(paths), NULL);
+}
+
+
+==================== src/loop.c ====================
+
+/* ************************************************************************** */
+/*                                                                            */
+/*                                                        :::      ::::::::   */
+/*   loop.c                                             :+:      :+:    :+:   */
+/*                                                    +:+ +:+         +:+     */
+/*   By: lundaevv <lundaevv@student.42.fr>          +#+  +:+       +#+        */
+/*                                                +#+#+#+#+#+   +#+           */
+/*   Created: 2025/12/02 17:12:40 by vlundaev          #+#    #+#             */
+/*   Updated: 2026/01/21 14:03:57 by lundaevv         ###   ########.fr       */
+/*                                                                            */
+/* ************************************************************************** */
+
+#include "minishell.h"
+
+static char	*read_line_with_prompt(void)
+{
+	char	*line;
+
+	signals_interactive();
+	line = readline("minishell$ ");
+	if (!line)
+	{
+		ft_putendl_fd("exit", STDOUT_FILENO);
+		return (NULL);
+	}
+	return (line);
+}
+
+void	shell_loop(t_shell *shell)
+{
+	char	*line;
+
+	while (!shell->should_exit)
+	{
+		line = read_line_with_prompt();
+		if (!line)
+			break ;
+		run_line(shell, line);
+	}
+}
+
+
+==================== src/main.c ====================
+
+/* ************************************************************************** */
+/*                                                                            */
+/*                                                        :::      ::::::::   */
+/*   main.c                                             :+:      :+:    :+:   */
+/*                                                    +:+ +:+         +:+     */
+/*   By: lundaevv <lundaevv@student.42.fr>          +#+  +:+       +#+        */
+/*                                                +#+#+#+#+#+   +#+           */
+/*   Created: 2026/01/21 14:02:14 by lundaevv          #+#    #+#             */
+/*   Updated: 2026/01/21 14:17:05 by lundaevv         ###   ########.fr       */
+/*                                                                            */
+/* ************************************************************************** */
+
+#include "minishell.h"
+
+static void	free_envp(char **envp)
+{
+	int	i;
+
+	if (!envp)
+		return ;
+	i = 0;
+	while (envp[i])
+	{
+		free(envp[i]);
+		i++;
+	}
+	free(envp);
+}
+
+int	main(int argc, char **argv, char **envp)
+{
+	t_shell	shell;
+
+	(void)argc;
+	(void)argv;
+	shell.exit_status = 0;
+	shell.should_exit = 0;
+	shell.envp = env_copy(envp);
+	if (!shell.envp)
+		return (1);
+	shell_loop(&shell);
+	free_envp(shell.envp);
+	return (shell.exit_status);
+}
+
+
+==================== src/parsing/debug/debug.c ====================
+
+/* ************************************************************************** */
+/*                                                                            */
+/*                                                        :::      ::::::::   */
+/*   debug.c                                            :+:      :+:    :+:   */
+/*                                                    +:+ +:+         +:+     */
+/*   By: lundaevv <lundaevv@student.42.fr>          +#+  +:+       +#+        */
+/*                                                +#+#+#+#+#+   +#+           */
+/*   Created: 2025/12/11 19:18:50 by vlundaev          #+#    #+#             */
+/*   Updated: 2026/01/20 15:40:10 by lundaevv         ###   ########.fr       */
+/*                                                                            */
+/* ************************************************************************** */
+
+#include "minishell.h"
+
+static const char	*redir_name(t_redir_type t)
+{
+	if (t == REDIR_IN)
+		return ("<");
+	if (t == REDIR_OUT)
+		return (">");
+	if (t == REDIR_APPEND)
+		return (">>");
+	if (t == REDIR_HEREDOC)
+		return ("<<");
+	return ("?");
+}
+
+static const char	*tok_name(t_token_type t)
+{
+	if (t == TOKEN_WORD)
+		return ("WORD");
+	if (t == TOKEN_PIPE)
+		return ("PIPE");
+	if (t == TOKEN_REDIR_IN)
+		return ("REDIR_IN");
+	if (t == TOKEN_REDIR_OUT)
+		return ("REDIR_OUT");
+	if (t == TOKEN_REDIR_APPEND)
+		return ("REDIR_APPEND");
+	if (t == TOKEN_HEREDOC)
+		return ("HEREDOC");
+	return ("?");
+}
+
+static int	argv_len(char *const *argv)
+{
+	int	i;
+
+	if (!argv)
+		return (0);
+	i = 0;
+	while (argv[i])
+		i++;
+	return (i);
+}
+
+static void	ms_debug_redirs(const t_cmd *cmd)
+{
+	int	i;
+
+	printf("  redirs ptr     = %p\n", (void *)cmd->redirs);
+	printf("  redir_count    = %d\n", cmd->redir_count);
+	if (!cmd->redirs || cmd->redir_count <= 0)
+		return ;
+	i = 0;
+	while (i < cmd->redir_count)
+	{
+		printf("    redir[%d] ptr  = %p\n", i, (void *)&cmd->redirs[i]);
+		printf("      op          = %s\n", redir_name(cmd->redirs[i].type));
+		printf("      target ptr  = %p\n", (void *)cmd->redirs[i].target);
+		printf("      target      = '%s'\n",
+			(cmd->redirs[i].target ? cmd->redirs[i].target : "(null)"));
+		printf("      heredoc_expand = %d\n", cmd->redirs[i].heredoc_expand);
+		if (cmd->redirs[i].type == REDIR_HEREDOC)
+			printf("      expand      = %d\n",
+				(int)cmd->redirs[i].heredoc_expand);
+		i++;
+	}
+}
+
+/*
+** Debug print of tokens (source)
+*/
+void	token_list_print(t_token *list)
+{
+	int	i;
+
+	i = 0;
+	while (list && i < 200)
+	{
+		printf("TOK[%d] node_ptr=%p type=%s(%d) value_ptr=%p",
+			i, (void *)list, tok_name(list->type), list->type,
+			(void *)list->value);
+		if (list->type == TOKEN_WORD)
+			printf(" has_quotes=%d", (int)list->has_quotes);
+		printf(" value='%s'\n", (list->value ? list->value : "(null)"));
+		list = list->next;
+		i++;
+	}
+	if (i == 200)
+		printf("(stop: token list too long)\n");
+}
+
+static void	ms_debug_line(const char *line)
+{
+	if (!line)
+		return ;
+	ft_putstr_fd("You typed: ", STDOUT_FILENO);
+	ft_putendl_fd((char *)line, STDOUT_FILENO);
+}
+
+static void	ms_debug_tokens(t_token *tokens)
+{
+	if (!tokens)
+		return ;
+	printf("=== TOKENS (after expand / before parse) ===\n");
+	token_list_print(tokens);
+}
+
+static void	ms_debug_argv(const t_cmd *cmd)
+{
+	int	argc;
+	int	i;
+
+	printf("argv ptr       = %p\n", (void *)cmd->argv);
+	if (!cmd->argv)
+	{
+		printf("argc           = 0\n");
+		printf("  (argv is NULL)\n");
+		return ;
+	}
+	argc = argv_len(cmd->argv);
+	printf("argc           = %d\n", argc);
+	i = 0;
+	while (cmd->argv[i] && i < 50)
+	{
+		printf("  argv[%d] ptr  = %p\n", i, (void *)cmd->argv[i]);
+		printf("  argv[%d]      = '%s'\n", i, cmd->argv[i]);
+		i++;
+	}
+	if (i == 50 && cmd->argv[i] != NULL)
+		printf("  (stop: argv not NULL-terminated?)\n");
+	printf("  argv[%d] ptr  = %p (terminator)\n",
+		argc, (void *)cmd->argv[argc]);
+}
+
+/*
+** Print argv + redirs for each command in the pipeline (what exec will use).
+** Limit argv to 50 args to avoid infinite loops if argv is not NULL-terminated.
+*/
+void	ms_debug_pipeline(const t_pipeline *p)
+{
+	int	j;
+
+	if (!p)
+	{
+		printf("=== PIPELINE (NULL) ===\n");
+		return ;
+	}
+	printf("=== PIPELINE STRUCTURE SENT TO EXEC ===\n");
+	printf("pipeline ptr   = %p\n", (void *)p);
+	printf("cmds ptr       = %p\n", (void *)p->cmds);
+	printf("cmd_count      = %d\n", p->cmd_count);
+	if (!p->cmds || p->cmd_count <= 0)
+		return ;
+	j = 0;
+	while (j < p->cmd_count)
+	{
+		printf("\n--- CMD[%d] ---\n", j);
+		printf("cmd ptr        = %p\n", (void *)&p->cmds[j]);
+		ms_debug_argv(&p->cmds[j]);
+		printf("redirs:\n");
+		ms_debug_redirs(&p->cmds[j]);
+		j++;
+	}
+	printf("\n=== END PIPELINE ===\n");
+}
+
+/*
+** Global debug entry point. Call this once per line.
+*/
+void	ms_debug_state(t_shell *shell, const char *line, t_token *tokens,
+		t_pipeline *p)
+{
+	(void)shell;
+	printf("\n================ DEBUG STATE ================\n");
+	ms_debug_line(line);
+	ms_debug_tokens(tokens);
+	ms_debug_pipeline(p);
+	printf("=============================================\n\n");
+}
+
+void	ms_debug_counts(t_token *tokens)
+{
+	printf("DEBUG words_no_redirs=%d\n", count_words_no_redirs(tokens));
+	printf("DEBUG redirs=%d\n", count_redirs_simple(tokens));
+}
+
+
+==================== src/parsing/expander/expander.c ====================
+
+/* ************************************************************************** */
+/*                                                                            */
+/*                                                        :::      ::::::::   */
+/*   expander.c                                         :+:      :+:    :+:   */
+/*                                                    +:+ +:+         +:+     */
+/*   By: lundaevv <lundaevv@student.42.fr>          +#+  +:+       +#+        */
+/*                                                +#+#+#+#+#+   +#+           */
+/*   Created: 2025/12/04 14:08:14 by vlundaev          #+#    #+#             */
+/*   Updated: 2026/01/19 15:00:30 by lundaevv         ###   ########.fr       */
+/*                                                                            */
+/* ************************************************************************** */
+
+#include "minishell.h"
+
+/*
+** Expand all tokens before parsing.
+** "$?" and VAR in WORD tokens.
+**
+** IMPORTANT:
+** Do NOT expand heredoc limiter:
+**   cat << $EOF
+** limiter must stay literal (bash behavior).
+*/
+int	expand_tokens(t_token *list, char **envp, int last_exit_status)
+{
+	char	*new_value;
+
+	while (list)
+	{
+		if (list->type == TOKEN_HEREDOC)
+		{
+			if (list->next && list->next->type == TOKEN_WORD)
+				list = list->next;
+			list = list->next;
+			continue ;
+		}
+		if (list->type == TOKEN_WORD)
+		{
+			new_value = ms_expand_unquote(list->value, envp, last_exit_status);
+			if (!new_value)
+				return (1);
+			free(list->value);
+			list->value = new_value;
+		}
+		list = list->next;
+	}
+	return (0);
+}
+
+
+==================== src/parsing/expander/expander_len.c ====================
+
+/* ************************************************************************** */
+/*                                                                            */
+/*                                                        :::      ::::::::   */
+/*   expander_len.c                                     :+:      :+:    :+:   */
+/*                                                    +:+ +:+         +:+     */
+/*   By: lundaevv <lundaevv@student.42.fr>          +#+  +:+       +#+        */
+/*                                                +#+#+#+#+#+   +#+           */
+/*   Created: 2025/12/17 22:24:37 by lundaevv          #+#    #+#             */
+/*   Updated: 2026/01/19 15:41:55 by lundaevv         ###   ########.fr       */
+/*                                                                            */
+/* ************************************************************************** */
+
+#include "minishell.h"
+
+static size_t	ms_status_len(int last_status)
+{
+	char	*s;
+	size_t	len;
+
+	s = ft_itoa(last_status);
+	if (!s)
+		return (0);
+	len = ft_strlen(s);
+	free(s);
+	return (len);
+}
+
+static size_t	ms_var_value_len(const char *src, int *i, char **envp)
+{
+	int		len;
+	char	*val;
+
+	(*i)++;
+	len = ms_var_name_len(src + *i);
+	val = ms_get_env_value(src + *i, len, envp);
+	*i += len;
+	if (!val)
+		return (0);
+	return (ft_strlen(val));
+}
+
+static size_t	ms_dollar_len(const char *src, int *i, char **envp, int st)
+{
+	if (src[*i + 1] == '?')
+	{
+		*i += 2;
+		return (ms_status_len(st));
+	}
+	if (ms_is_var_start(src[*i + 1]))
+		return (ms_var_value_len(src, i, envp));
+	(*i)++;
+	return (1);
+}
+
+static int	ms_quote_step(const char *src, int *i, char *q)
+{
+	if (*q == 0 && (src[*i] == '\'' || src[*i] == '"'))
+	{
+		*q = src[*i];
+		(*i)++;
+		return (1);
+	}
+	if (*q == '\'' && src[*i] == '\'')
+	{
+		*q = 0;
+		(*i)++;
+		return (1);
+	}
+	if (*q == '"' && src[*i] == '"')
+	{
+		*q = 0;
+		(*i)++;
+		return (1);
+	}
+	return (0);
+}
+
+size_t	ms_expanded_len(const char *src, char **envp, int last_status)
+{
+	size_t	len;
+	int		i;
+	char	q;
+
+	len = 0;
+	i = 0;
+	q = 0;
+	while (src && src[i])
+	{
+		if (ms_quote_step(src, &i, &q))
+			continue ;
+		if (src[i] == '$' && q != '\'')
+			len += ms_dollar_len(src, &i, envp, last_status);
+		else
+		{
+			len++;
+			i++;
+		}
+	}
+	return (len);
+}
+
+
+==================== src/parsing/expander/expander_limiter.c ====================
+
+/* ************************************************************************** */
+/*                                                                            */
+/*                                                        :::      ::::::::   */
+/*   expander_limiter.c                                 :+:      :+:    :+:   */
+/*                                                    +:+ +:+         +:+     */
+/*   By: lundaevv <lundaevv@student.42.fr>          +#+  +:+       +#+        */
+/*                                                +#+#+#+#+#+   +#+           */
+/*   Created: 2026/01/19 15:01:54 by lundaevv          #+#    #+#             */
+/*   Updated: 2026/01/20 15:39:55 by lundaevv         ###   ########.fr       */
+/*                                                                            */
+/* ************************************************************************** */
+
+#include "minishell.h"
+
+static size_t	ms_limiter_len(const char *s)
+{
+	size_t	len;
+	int		i;
+	char	q;
+
+	len = 0;
+	i = 0;
+	q = 0;
+	while (s && s[i])
+	{
+		if (ms_quote_step_i(s, &i, &q))
+			continue ;
+		len++;
+		i++;
+	}
+	return (len);
+}
+
+char	*ms_unquote_limiter(const char *src)
+{
+	char	*dst;
+	size_t	j;
+	int		i;
+	char	q;
+
+	dst = (char *)malloc(ms_limiter_len(src) + 1);
+	if (!dst)
+		return (NULL);
+	j = 0;
+	i = 0;
+	q = 0;
+	while (src && src[i])
+	{
+		if (ms_quote_step_i(src, &i, &q))
+			continue ;
+		dst[j++] = src[i];
+		i++;
+	}
+	dst[j] = '\0';
+	return (dst);
+}
+
+
+==================== src/parsing/expander/expander_quotes.c ====================
+
+/* ************************************************************************** */
+/*                                                                            */
+/*                                                        :::      ::::::::   */
+/*   expander_quotes.c                                  :+:      :+:    :+:   */
+/*                                                    +:+ +:+         +:+     */
+/*   By: lundaevv <lundaevv@student.42.fr>          +#+  +:+       +#+        */
+/*                                                +#+#+#+#+#+   +#+           */
+/*   Created: 2026/01/19 15:48:39 by lundaevv          #+#    #+#             */
+/*   Updated: 2026/01/20 15:40:38 by lundaevv         ###   ########.fr       */
+/*                                                                            */
+/* ************************************************************************** */
+
+#include "minishell.h"
+
+/*
+** Return 1 if we consumed a quote char (opened/closed quotes).
+** Return 0 if current char should be treated as a normal char.
+**
+** Rules:
+** - when q == 0:
+**     '\'' or '"' opens quote mode (char is NOT copied)
+** - when q == '\'':
+**     '\'' closes quote mode (char is NOT copied)
+** - when q == '"':
+**     '"' closes quote mode (char is NOT copied)
+** - other quotes inside quotes are normal characters
+*/
+int	ms_quote_step_i(const char *s, int *i, char *q)
+{
+	if (*q == 0 && (s[*i] == '\'' || s[*i] == '"'))
+	{
+		*q = s[*i];
+		(*i)++;
+		return (1);
+	}
+	if (*q == '\'' && s[*i] == '\'')
+	{
+		*q = 0;
+		(*i)++;
+		return (1);
+	}
+	if (*q == '"' && s[*i] == '"')
+	{
+		*q = 0;
+		(*i)++;
+		return (1);
+	}
+	return (0);
+}
+
+int	ms_quote_step_p(const char **p, char *q)
+{
+	if (*q == 0 && (**p == '\'' || **p == '"'))
+	{
+		*q = **p;
+		(*p)++;
+		return (1);
+	}
+	if (*q == '\'' && **p == '\'')
+	{
+		*q = 0;
+		(*p)++;
+		return (1);
+	}
+	if (*q == '"' && **p == '"')
+	{
+		*q = 0;
+		(*p)++;
+		return (1);
+	}
+	return (0);
+}
+
+
+==================== src/parsing/expander/expander_unquote.c ====================
+
+/* ************************************************************************** */
+/*                                                                            */
+/*                                                        :::      ::::::::   */
+/*   expander_unquote.c                                 :+:      :+:    :+:   */
+/*                                                    +:+ +:+         +:+     */
+/*   By: lundaevv <lundaevv@student.42.fr>          +#+  +:+       +#+        */
+/*                                                +#+#+#+#+#+   +#+           */
+/*   Created: 2025/12/17 22:18:29 by lundaevv          #+#    #+#             */
+/*   Updated: 2025/12/17 23:04:36 by lundaevv         ###   ########.fr       */
+/*                                                                            */
+/* ************************************************************************** */
+
+#include "minishell.h"
+
+static void	ms_set_ctx(void **ctx, char **envp, int *st)
+{
+	ctx[0] = envp;
+	ctx[1] = st;
+}
+
+char	*ms_expand_unquote(const char *src, char **envp, int last_status)
+{
+	char	*dst;
+	size_t	len;
+	void	*ctx[2];
+	int		j;
+
+	len = ms_expanded_len(src, envp, last_status);
+	dst = (char *)malloc(len + 1);
+	if (!dst)
+		return (NULL);
+	ms_set_ctx(ctx, envp, &last_status);
+	j = ms_expand_run(dst, src, ctx);
+	dst[j] = '\0';
+	return (dst);
+}
+
+
+==================== src/parsing/expander/expander_unquote_run.c ====================
+
+/* ************************************************************************** */
+/*                                                                            */
+/*                                                        :::      ::::::::   */
+/*   expander_unquote_run.c                             :+:      :+:    :+:   */
+/*                                                    +:+ +:+         +:+     */
+/*   By: lundaevv <lundaevv@student.42.fr>          +#+  +:+       +#+        */
+/*                                                +#+#+#+#+#+   +#+           */
+/*   Created: 2025/12/17 23:04:57 by lundaevv          #+#    #+#             */
+/*   Updated: 2026/01/19 15:52:27 by lundaevv         ###   ########.fr       */
+/*                                                                            */
+/* ************************************************************************** */
+
+#include "minishell.h"
+
+static void	ms_copy_str(char *dst, int *j, const char *src)
+{
+	int	k;
+
+	k = 0;
+	while (src && src[k])
+	{
+		dst[*j] = src[k];
+		(*j)++;
+		k++;
+	}
+}
+
+static void	ms_copy_status(char *dst, int *j, void **ctx)
+{
+	char	*s;
+	int		st;
+
+	st = *(int *)ctx[1];
+	s = ft_itoa(st);
+	if (!s)
+		return ;
+	ms_copy_str(dst, j, s);
+	free(s);
+}
+
+static void	ms_copy_dollar(char *dst, int *j, const char **p, void **ctx)
+{
+	int		len;
+	char	*val;
+
+	if ((*p)[1] == '?')
+		return (*p += 2, ms_copy_status(dst, j, ctx));
+	if (ms_is_var_start((*p)[1]))
+	{
+		len = ms_var_name_len((*p) + 1);
+		val = ms_get_env_value((*p) + 1, len, (char **)ctx[0]);
+		*p += 1 + len;
+		if (val)
+			ms_copy_str(dst, j, val);
+		return ;
+	}
+	dst[(*j)++] = *(*p)++;
+}
+
+static int	ms_quote_step(const char **p, char *q)
+{
+	if (*q == 0 && (**p == '\'' || **p == '"'))
+	{
+		*q = **p;
+		(*p)++;
+		return (1);
+	}
+	if (*q == '\'' && **p == '\'')
+	{
+		*q = 0;
+		(*p)++;
+		return (1);
+	}
+	if (*q == '"' && **p == '"')
+	{
+		*q = 0;
+		(*p)++;
+		return (1);
+	}
+	return (0);
+}
+
+int	ms_expand_run(char *dst, const char *src, void **ctx)
+{
+	const char	*p;
+	int			j;
+	char		q;
+
+	p = src;
+	j = 0;
+	q = 0;
+	while (p && *p)
+	{
+		if (ms_quote_step(&p, &q))
+			continue ;
+		if (*p == '$' && q != '\'')
+			ms_copy_dollar(dst, &j, &p, ctx);
+		else
+		{
+			dst[j] = *p;
+			j++;
+			p++;
+		}
+	}
+	return (j);
+}
+
+
+==================== src/parsing/expander/expander_utils.c ====================
+
+/* ************************************************************************** */
+/*                                                                            */
+/*                                                        :::      ::::::::   */
+/*   expander_utils.c                                   :+:      :+:    :+:   */
+/*                                                    +:+ +:+         +:+     */
+/*   By: lundaevv <lundaevv@student.42.fr>          +#+  +:+       +#+        */
+/*                                                +#+#+#+#+#+   +#+           */
+/*   Created: 2025/12/17 22:26:10 by lundaevv          #+#    #+#             */
+/*   Updated: 2025/12/17 22:28:37 by lundaevv         ###   ########.fr       */
+/*                                                                            */
+/* ************************************************************************** */
+
+#include "minishell.h"
+
+int	ms_is_var_start(char c)
+{
+	return (ft_isalpha((unsigned char)c) || c == '_');
+}
+
+int	ms_is_var_char(char c)
+{
+	return (ft_isalnum((unsigned char)c) || c == '_');
+}
+
+int	ms_var_name_len(const char *s)
+{
+	int	len;
+
+	len = 0;
+	while (s[len] && ms_is_var_char(s[len]))
+		len++;
+	return (len);
+}
+
+char	*ms_get_env_value(const char *name, int len, char **envp)
+{
+	int	i;
+
+	i = 0;
+	while (envp && envp[i])
+	{
+		if (ft_strncmp(envp[i], name, len) == 0 && envp[i][len] == '=')
+			return (envp[i] + len + 1);
+		i++;
+	}
+	return (NULL);
+}
+
+
+==================== src/parsing/lexer/lexer.c ====================
+
+/* ************************************************************************** */
+/*                                                                            */
+/*                                                        :::      ::::::::   */
+/*   lexer.c                                            :+:      :+:    :+:   */
+/*                                                    +:+ +:+         +:+     */
+/*   By: lundaevv <lundaevv@student.42.fr>          +#+  +:+       +#+        */
+/*                                                +#+#+#+#+#+   +#+           */
+/*   Created: 2025/12/02 18:20:30 by vlundaev          #+#    #+#             */
+/*   Updated: 2025/12/17 17:14:04 by lundaevv         ###   ########.fr       */
+/*                                                                            */
+/* ************************************************************************** */
+
+#include "minishell.h"
+
+/*
+** Very simple lexer:
+** - skips spaces
+** - collects characters until next space
+** - creates a TOKEN_WORD
+*/
+t_token	*lexer_tokenize(const char *line)
+{
+	t_token	*tokens;
+	t_token	*new_token;
+	int		i;
+
+	tokens = NULL;
+	i = 0;
+	while (line[i] != '\0')
+	{
+		while (line[i] != '\0' && is_space(line[i]))
+			i++;
+		if (line[i] == '\0')
+			break ;
+		if (line[i] == '|' || line[i] == '<' || line[i] == '>')
+			new_token = lexer_read_operator(line, &i);
+		else
+			new_token = lexer_read_word(line, &i);
+		if (!new_token)
+		{
+			token_list_clear(&tokens);
+			return (NULL);
+		}
+		token_add_back(&tokens, new_token);
+	}
+	return (tokens);
+}
+
+
+==================== src/parsing/lexer/lexer_operator.c ====================
+
+/* ************************************************************************** */
+/*                                                                            */
+/*                                                        :::      ::::::::   */
+/*   lexer_operator.c                                   :+:      :+:    :+:   */
+/*                                                    +:+ +:+         +:+     */
+/*   By: lundaevv <lundaevv@student.42.fr>          +#+  +:+       +#+        */
+/*                                                +#+#+#+#+#+   +#+           */
+/*   Created: 2025/12/03 17:09:51 by vlundaev          #+#    #+#             */
+/*   Updated: 2025/12/17 17:14:19 by lundaevv         ###   ########.fr       */
+/*                                                                            */
+/* ************************************************************************** */
+
+#include "minishell.h"
+
+static t_token	*lexer_read_less(const char *line, int *i)
+{
+	if (line[*i + 1] == '<')
+	{
+		*i += 2;
+		return (token_new(ft_strdup("<<"), TOKEN_HEREDOC));
+	}
+	(*i)++;
+	return (token_new(ft_strdup("<"), TOKEN_REDIR_IN));
+}
+
+static t_token	*lexer_read_greater(const char *line, int *i)
+{
+	if (line[*i + 1] == '>')
+	{
+		*i += 2;
+		return (token_new(ft_strdup(">>"), TOKEN_REDIR_APPEND));
+	}
+	(*i)++;
+	return (token_new(ft_strdup(">"), TOKEN_REDIR_OUT));
+}
+
+/*
+** Read an operator token at position *i:
+**  |   -> TOKEN_PIPE
+**  <   -> TOKEN_REDIR_IN or TOKEN_HEREDOC
+**  >   -> TOKEN_REDIR_OUT or TOKEN_REDIR_APPEND
+** Advances *i to the first character after the operator.
+*/
+t_token	*lexer_read_operator(const char *line, int *i)
+{
+	if (line[*i] == '|')
+	{
+		(*i)++;
+		return (token_new(ft_strdup("|"), TOKEN_PIPE));
+	}
+	if (line[*i] == '<')
+		return (lexer_read_less(line, i));
+	if (line[*i] == '>')
+		return (lexer_read_greater(line, i));
+	return (NULL);
+}
+
+
+==================== src/parsing/lexer/lexer_utils.c ====================
+
+/* ************************************************************************** */
+/*                                                                            */
+/*                                                        :::      ::::::::   */
+/*   lexer_utils.c                                      :+:      :+:    :+:   */
+/*                                                    +:+ +:+         +:+     */
+/*   By: lundaevv <lundaevv@student.42.fr>          +#+  +:+       +#+        */
+/*                                                +#+#+#+#+#+   +#+           */
+/*   Created: 2025/12/03 16:56:17 by vlundaev          #+#    #+#             */
+/*   Updated: 2026/01/19 12:06:32 by lundaevv         ###   ########.fr       */
+/*                                                                            */
+/* ************************************************************************** */
+
+#include "minishell.h"
+
+int	is_space(char c)
+{
+	if (c == ' ' || c == '\t' || c == '\n'
+		|| c == '\r' || c == '\v' || c == '\f')
+		return (1);
+	return (0);
+}
+
+/*
+** Create a new token node
+** 'value' is a string created with malloc (from ft_substr)
+*/
+t_token	*token_new(char *value, t_token_type type)
+{
+	t_token	*node;
+
+	if (!value)
+		return (NULL);
+	node = (t_token *)malloc(sizeof(t_token));
+	if (!node)
+		return (NULL);
+	node->value = value;
+	node->type = type;
+	node->has_quotes = false;
+	node->next = NULL;
+	return (node);
+}
+
+/*
+** Add a token at the end of the linked list
+** list -> pointer to head pointer
+** new_node -> the node we insert
+*/
+void	token_add_back(t_token **list, t_token *new_node)
+{
+	t_token	*current;
+
+	if (!list || !new_node)
+		return ;
+	if (!*list)
+	{
+		*list = new_node;
+		return ;
+	}
+	current = *list;
+	while (current->next != NULL)
+		current = current->next;
+	current->next = new_node;
+}
+
+/*
+** Free all tokens in the list
+** list -> pointer to head pointer
+*/
+void	token_list_clear(t_token **list)
+{
+	t_token	*cur;
+	t_token	*next;
+
+	if (!list)
+		return ;
+	cur = *list;
+	while (cur)
+	{
+		next = cur->next;
+		free(cur->value);
+		free(cur);
+		cur = next;
+	}
+	*list = NULL;
+}
+
+
+==================== src/parsing/lexer/lexer_word.c ====================
+
+/* ************************************************************************** */
+/*                                                                            */
+/*                                                        :::      ::::::::   */
+/*   lexer_word.c                                       :+:      :+:    :+:   */
+/*                                                    +:+ +:+         +:+     */
+/*   By: lundaevv <lundaevv@student.42.fr>          +#+  +:+       +#+        */
+/*                                                +#+#+#+#+#+   +#+           */
+/*   Created: 2025/12/03 16:37:24 by vlundaev          #+#    #+#             */
+/*   Updated: 2026/01/19 12:10:54 by lundaevv         ###   ########.fr       */
+/*                                                                            */
+/* ************************************************************************** */
+
+#include "minishell.h"
+
+static int	lex_word_advance(const char *line, int *i, int *has_quotes)
+{
+	int	in_single;
+	int	in_double;
+
+	in_single = 0;
+	in_double = 0;
+	*has_quotes = 0;
+	while (line[*i] != '\0')
+	{
+		if (line[*i] == '\'' && !in_double)
+			in_single = !in_single;
+		else if (line[*i] == '\"' && !in_single)
+			in_double = !in_double;
+		if (line[*i] == '\'' || line[*i] == '\"')
+			*has_quotes = 1;
+		else if (!in_single && !in_double
+			&& (is_space(line[*i]) || line[*i] == '|'
+				|| line[*i] == '<' || line[*i] == '>'))
+			break ;
+		(*i)++;
+	}
+	return (0);
+}
+
+/*
+** Read a WORD token starting at *i.
+** Keeps quotes inside the token for now.
+** Stops on space/tab/operator when not inside quotes.
+** Advances *i to the first character after the word.
+*/
+t_token	*lexer_read_word(const char *line, int *i)
+{
+	int		start;
+	int		has_quotes;
+	t_token	*tok;
+
+	start = *i;
+	lex_word_advance(line, i, &has_quotes);
+	tok = token_new(ft_substr(line, start, *i - start), TOKEN_WORD);
+	if (!tok)
+		return (NULL);
+	tok->has_quotes = (has_quotes != 0);
+	return (tok);
+}
+
+
+==================== src/parsing/parser/argv/parser_argv.c ====================
+
+/* ************************************************************************** */
+/*                                                                            */
+/*                                                        :::      ::::::::   */
+/*   parser_argv.c                                      :+:      :+:    :+:   */
+/*                                                    +:+ +:+         +:+     */
+/*   By: lundaevv <lundaevv@student.42.fr>          +#+  +:+       +#+        */
+/*                                                +#+#+#+#+#+   +#+           */
+/*   Created: 2025/12/17 15:57:02 by lundaevv          #+#    #+#             */
+/*   Updated: 2025/12/17 23:31:29 by lundaevv         ###   ########.fr       */
+/*                                                                            */
+/* ************************************************************************** */
+
+#include "minishell.h"
+
+/*
+** Count arguments and malloc for argv
+*/
+static char	**alloc_argv_simple(t_token *tokens, int *count)
+{
+	char	**argv;
+
+	*count = count_words_no_redirs(tokens);
+	argv = (char **)malloc(sizeof(char *) * (size_t)(*count + 1));
+	if (!argv)
+		return (NULL);
+	return (argv);
+}
+
+/*
+** Fills argv with strings
+*/
+static int	fill_argv_simple(char **argv, t_token *tokens)
+{
+	int	i;
+
+	i = 0;
+	while (tokens && tokens->type != TOKEN_PIPE)
+	{
+		if (is_redir_token(tokens->type))
+		{
+			skip_redir_pair(&tokens);
+			continue ;
+		}
+		if (tokens->type == TOKEN_WORD)
+		{
+			argv[i] = ft_strdup(tokens->value);
+			if (!argv[i])
+				return (free_argv_partial(argv, i));
+			i++;
+		}
+		tokens = tokens->next;
+	}
+	argv[i] = NULL;
+	return (0);
+}
+
+/*
+** Combine 2: count and initialize the array + fill it
+** returns argv
+*/
+char	**build_argv_simple(t_token *tokens)
+{
+	char	**argv;
+	int		count;
+
+	argv = alloc_argv_simple(tokens, &count);
+	if (!argv)
+		return (NULL);
+	if (fill_argv_simple(argv, tokens))
+	{
+		free(argv);
+		return (NULL);
+	}
+	return (argv);
+}
+
+
+==================== src/parsing/parser/argv/parser_argv_count.c ====================
+
+/* ************************************************************************** */
+/*                                                                            */
+/*                                                        :::      ::::::::   */
+/*   parser_argv_count.c                                :+:      :+:    :+:   */
+/*                                                    +:+ +:+         +:+     */
+/*   By: lundaevv <lundaevv@student.42.fr>          +#+  +:+       +#+        */
+/*                                                +#+#+#+#+#+   +#+           */
+/*   Created: 2025/12/17 17:47:22 by lundaevv          #+#    #+#             */
+/*   Updated: 2025/12/17 23:35:04 by lundaevv         ###   ########.fr       */
+/*                                                                            */
+/* ************************************************************************** */
+
+#include "minishell.h"
+
+int	count_words_no_redirs(t_token *tokens)
+{
+	int	count;
+
+	count = 0;
+	while (tokens && tokens->type != TOKEN_PIPE)
+	{
+		if (is_redir_token(tokens->type))
+		{
+			tokens = tokens->next;
+			if (tokens && tokens->type == TOKEN_WORD)
+				tokens = tokens->next;
+			continue ;
+		}
+		if (tokens->type == TOKEN_WORD)
+			count++;
+		tokens = tokens->next;
+	}
+	return (count);
+}
+
+
+==================== src/parsing/parser/argv/parser_argv_utils.c ====================
+
+/* ************************************************************************** */
+/*                                                                            */
+/*                                                        :::      ::::::::   */
+/*   parser_argv_utils.c                                :+:      :+:    :+:   */
+/*                                                    +:+ +:+         +:+     */
+/*   By: lundaevv <lundaevv@student.42.fr>          +#+  +:+       +#+        */
+/*                                                +#+#+#+#+#+   +#+           */
+/*   Created: 2025/12/17 18:17:45 by lundaevv          #+#    #+#             */
+/*   Updated: 2025/12/17 23:32:54 by lundaevv         ###   ########.fr       */
+/*                                                                            */
+/* ************************************************************************** */
+
+#include "minishell.h"
+
+/* Skip one redirection token and its WORD target if present. */
+void	skip_redir_pair(t_token **cur)
+{
+	if (!cur || !*cur)
+		return ;
+	*cur = (*cur)->next;
+	if (*cur && (*cur)->type == TOKEN_WORD)
+		*cur = (*cur)->next;
+}
+
+int	free_argv_partial(char **argv, int filled)
+{
+	while (filled > 0)
+	{
+		filled--;
+		free(argv[filled]);
+	}
+	return (1);
+}
+
+
+==================== src/parsing/parser/parser.c ====================
+
+/* ************************************************************************** */
+/*                                                                            */
+/*                                                        :::      ::::::::   */
+/*   parser.c                                           :+:      :+:    :+:   */
+/*                                                    +:+ +:+         +:+     */
+/*   By: lundaevv <lundaevv@student.42.fr>          +#+  +:+       +#+        */
+/*                                                +#+#+#+#+#+   +#+           */
+/*   Created: 2025/12/11 17:50:40 by vlundaev          #+#    #+#             */
+/*   Updated: 2025/12/17 18:49:06 by lundaevv         ###   ########.fr       */
+/*                                                                            */
+/* ************************************************************************** */
+
+#include "minishell.h"
+
+/*
+** Alloc and init t_pipeline
+*/
+static t_pipeline	*alloc_pipeline_struct(int cmd_count)
+{
+	t_pipeline	*p;
+
+	p = (t_pipeline *)malloc(sizeof(t_pipeline));
+	if (!p)
+		return (NULL);
+	p->cmd_count = cmd_count;
+	p->cmds = (t_cmd *)malloc(sizeof(t_cmd) * (size_t)cmd_count);
+	if (!p->cmds)
+	{
+		free(p);
+		return (NULL);
+	}
+	init_cmd_array(p->cmds, cmd_count);
+	return (p);
+}
+
+/*
+** Build a simple pipeline structure from a token list.
+** For now:
+**  - count commands separated by PIPE
+**  - allocate t_pipeline and its cmds array
+**  - do not fill argv or redirections yet
+*/
+t_pipeline	*parse_pipeline(t_token *tokens)
+{
+	t_pipeline	*p;
+	int			cmd_count;
+
+	if (!tokens)
+		return (NULL);
+	cmd_count = count_commands(tokens);
+	p = alloc_pipeline_struct(cmd_count);
+	if (!p)
+		return (NULL);
+	if (build_pipeline_cmds(p, tokens) != 0)
+	{
+		free_pipeline(p);
+		return (NULL);
+	}
+	return (p);
+}
+
+
+==================== src/parsing/parser/parser_build_cmds.c ====================
+
+/* ************************************************************************** */
+/*                                                                            */
+/*                                                        :::      ::::::::   */
+/*   parser_build_cmds.c                                :+:      :+:    :+:   */
+/*                                                    +:+ +:+         +:+     */
+/*   By: lundaevv <lundaevv@student.42.fr>          +#+  +:+       +#+        */
+/*                                                +#+#+#+#+#+   +#+           */
+/*   Created: 2025/12/17 15:45:22 by lundaevv          #+#    #+#             */
+/*   Updated: 2025/12/17 23:29:49 by lundaevv         ###   ########.fr       */
+/*                                                                            */
+/* ************************************************************************** */
+
+#include "minishell.h"
+
+static t_token	*skip_to_next_command(t_token *cur)
+{
+	while (cur && cur->type != TOKEN_PIPE)
+		cur = cur->next;
+	if (cur && cur->type == TOKEN_PIPE)
+		cur = cur->next;
+	return (cur);
+}
+
+/*
+** Fill argv for each command in the pipeline.
+** Returns 0 on success, 1 on error.
+*/
+int	build_pipeline_cmds(t_pipeline *p, t_token *tokens)
+{
+	t_token	*cur;
+	int		i;
+
+	cur = tokens;
+	i = 0;
+	while (i < p->cmd_count)
+	{
+		if (!cur)
+			return (1);
+		p->cmds[i].argv = build_argv_simple(cur);
+		if (!p->cmds[i].argv)
+			return (1);
+		p->cmds[i].redirs = build_redirs_simple(cur, &p->cmds[i].redir_count);
+		if (count_redirs_simple(cur) > 0 && !p->cmds[i].redirs)
+			return (1);
+		cur = skip_to_next_command(cur);
+		i++;
+	}
+	return (0);
+}
+
+
+==================== src/parsing/parser/parser_free.c ====================
+
+/* ************************************************************************** */
+/*                                                                            */
+/*                                                        :::      ::::::::   */
+/*   parser_free.c                                      :+:      :+:    :+:   */
+/*                                                    +:+ +:+         +:+     */
+/*   By: lundaevv <lundaevv@student.42.fr>          +#+  +:+       +#+        */
+/*                                                +#+#+#+#+#+   +#+           */
+/*   Created: 2025/12/11 19:15:26 by vlundaev          #+#    #+#             */
+/*   Updated: 2025/12/17 19:03:56 by lundaevv         ###   ########.fr       */
+/*                                                                            */
+/* ************************************************************************** */
+
+#include "minishell.h"
+
+static void	free_cmd(t_cmd *cmd)
+{
+	int	i;
+
+	if (cmd->argv)
+	{
+		i = 0;
+		while (cmd->argv[i])
+		{
+			free(cmd->argv[i]);
+			i++;
+		}
+		free(cmd->argv);
+	}
+	if (cmd->redirs)
+	{
+		i = 0;
+		while (i < cmd->redir_count)
+		{
+			free(cmd->redirs[i].target);
+			i++;
+		}
+		free(cmd->redirs);
+	}
+}
+
+void	free_pipeline(t_pipeline *p)
+{
+	int	i;
+
+	if (!p)
+		return ;
+	if (!p->cmds)
+	{
+		free(p);
+		return ;
+	}
+	i = 0;
+	while (i < p->cmd_count)
+	{
+		free_cmd(&p->cmds[i]);
+		i++;
+	}
+	free(p->cmds);
+	free(p);
+}
+
+
+==================== src/parsing/parser/parser_utils.c ====================
+
+/* ************************************************************************** */
+/*                                                                            */
+/*                                                        :::      ::::::::   */
+/*   parser_utils.c                                     :+:      :+:    :+:   */
+/*                                                    +:+ +:+         +:+     */
+/*   By: vlundaev <vlundaev@student.hive.fi>        +#+  +:+       +#+        */
+/*                                                +#+#+#+#+#+   +#+           */
+/*   Created: 2025/12/11 18:19:28 by vlundaev          #+#    #+#             */
+/*   Updated: 2025/12/11 19:58:21 by vlundaev         ###   ########.fr       */
+/*                                                                            */
+/* ************************************************************************** */
+
+#include "minishell.h"
+
+/*
+** Count how many commands are in the token list
+** Comamnds are separated by PIPE tokens
+*/
+int	count_commands(t_token *tokens)
+{
+	int	count;
+
+	count = 1;
+	while (tokens)
+	{
+		if (tokens->type == TOKEN_PIPE)
+			count++;
+		tokens = tokens->next;
+	}
+	return (count);
+}
+
+int	count_words_simple(t_token *tokens)
+{
+	int	count;
+
+	count = 0;
+	while (tokens && tokens->type != TOKEN_PIPE)
+	{
+		if (tokens->type == TOKEN_WORD)
+			count++;
+		tokens = tokens->next;
+	}
+	return (count);
+}
+
+/*
+** Initialize an array of t_cmd structures
+*/
+void	init_cmd_array(t_cmd *cmds, int count)
+{
+	int	i;
+
+	i = 0;
+	while (i < count)
+	{
+		cmds[i].argv = NULL;
+		cmds[i].redirs = NULL;
+		cmds[i].redir_count = 0;
+		i++;
+	}
+}
+
+
+==================== src/parsing/parser/redir/parser_redir_build.c ====================
+
+/* ************************************************************************** */
+/*                                                                            */
+/*                                                        :::      ::::::::   */
+/*   parser_redir_build.c                               :+:      :+:    :+:   */
+/*                                                    +:+ +:+         +:+     */
+/*   By: lundaevv <lundaevv@student.42.fr>          +#+  +:+       +#+        */
+/*                                                +#+#+#+#+#+   +#+           */
+/*   Created: 2025/12/17 18:46:26 by lundaevv          #+#    #+#             */
+/*   Updated: 2026/01/19 15:21:30 by lundaevv         ###   ########.fr       */
+/*                                                                            */
+/* ************************************************************************** */
+
+#include "minishell.h"
+
+static int	free_redirs_partial(t_redir *r, int filled)
+{
+	while (filled > 0)
+	{
+		filled--;
+		free(r[filled].target);
+	}
+	free(r);
+	return (1);
+}
+
+static void	set_heredoc_expand(t_redir *r, int k, t_token *t)
+{
+	r[k].heredoc_expand = true;
+	if (t && t->next && t->next->has_quotes)
+		r[k].heredoc_expand = false;
+}
+
+static int	add_one_redir(t_redir *r, int *k, t_token *t)
+{
+	if (!t || !t->next || t->next->type != TOKEN_WORD)
+		return (1);
+	if (token_to_redir_type(t->type, &r[*k].type) != 0)
+		return (1);
+	if (t->type == TOKEN_HEREDOC)
+		r[*k].target = ms_unquote_limiter(t->next->value);
+	else
+		r[*k].target = ft_strdup(t->next->value);
+	if (!r[*k].target)
+		return (1);
+	if (t->type == TOKEN_HEREDOC)
+		set_heredoc_expand(r, *k, t);
+	else
+		r[*k].heredoc_expand = false;
+	(*k)++;
+	return (0);
+}
+
+static int	fill_redirs_simple(t_redir *r, t_token *t)
+{
+	int	k;
+
+	k = 0;
+	while (t && t->type != TOKEN_PIPE)
+	{
+		if (is_redir_token(t->type))
+		{
+			if (add_one_redir(r, &k, t) != 0)
+				return (free_redirs_partial(r, k));
+			t = t->next->next;
+			continue ;
+		}
+		t = t->next;
+	}
+	return (0);
+}
+
+t_redir	*build_redirs_simple(t_token *tokens, int *out_count)
+{
+	t_redir	*r;
+	int		count;
+
+	if (!out_count)
+		return (NULL);
+	count = count_redirs_simple(tokens);
+	if (count == 0)
+	{
+		*out_count = 0;
+		return (NULL);
+	}
+	r = (t_redir *)malloc(sizeof(t_redir) * (size_t)count);
+	if (!r)
+	{
+		*out_count = 0;
+		return (NULL);
+	}
+	if (fill_redirs_simple(r, tokens) != 0)
+	{
+		*out_count = 0;
+		return (NULL);
+	}
+	*out_count = count;
+	return (r);
+}
+
+
+==================== src/parsing/parser/redir/parser_redir_count.c ====================
+
+/* ************************************************************************** */
+/*                                                                            */
+/*                                                        :::      ::::::::   */
+/*   parser_redir_count.c                               :+:      :+:    :+:   */
+/*                                                    +:+ +:+         +:+     */
+/*   By: lundaevv <lundaevv@student.42.fr>          +#+  +:+       +#+        */
+/*                                                +#+#+#+#+#+   +#+           */
+/*   Created: 2025/12/17 17:31:17 by lundaevv          #+#    #+#             */
+/*   Updated: 2025/12/17 23:29:06 by lundaevv         ###   ########.fr       */
+/*                                                                            */
+/* ************************************************************************** */
+
+#include "minishell.h"
+
+int	count_redirs_simple(t_token *tokens)
+{
+	int	count;
+
+	count = 0;
+	while (tokens && tokens->type != TOKEN_PIPE)
+	{
+		if (tokens->type == TOKEN_REDIR_IN || tokens->type == TOKEN_REDIR_OUT
+			|| tokens->type == TOKEN_REDIR_APPEND
+			|| tokens->type == TOKEN_HEREDOC)
+		{
+			if (tokens->next && tokens->next->type == TOKEN_WORD)
+				count++;
+		}
+		tokens = tokens->next;
+	}
+	return (count);
+}
+
+
+==================== src/parsing/parser/redir/parser_redir_map.c ====================
+
+/* ************************************************************************** */
+/*                                                                            */
+/*                                                        :::      ::::::::   */
+/*   parser_redir_map.c                                 :+:      :+:    :+:   */
+/*                                                    +:+ +:+         +:+     */
+/*   By: lundaevv <lundaevv@student.42.fr>          +#+  +:+       +#+        */
+/*                                                +#+#+#+#+#+   +#+           */
+/*   Created: 2025/12/17 18:45:16 by lundaevv          #+#    #+#             */
+/*   Updated: 2025/12/17 23:30:42 by lundaevv         ###   ########.fr       */
+/*                                                                            */
+/* ************************************************************************** */
+
+#include "minishell.h"
+
+int	token_to_redir_type(t_token_type t, t_redir_type *out)
+{
+	if (!out)
+		return (1);
+	if (t == TOKEN_REDIR_IN)
+		*out = REDIR_IN;
+	else if (t == TOKEN_REDIR_OUT)
+		*out = REDIR_OUT;
+	else if (t == TOKEN_REDIR_APPEND)
+		*out = REDIR_APPEND;
+	else if (t == TOKEN_HEREDOC)
+		*out = REDIR_HEREDOC;
+	else
+		return (1);
+	return (0);
+}
+
+
+==================== src/parsing/parser/redir/parser_redir_utils.c ====================
+
+/* ************************************************************************** */
+/*                                                                            */
+/*                                                        :::      ::::::::   */
+/*   parser_redir_utils.c                               :+:      :+:    :+:   */
+/*                                                    +:+ +:+         +:+     */
+/*   By: lundaevv <lundaevv@student.42.fr>          +#+  +:+       +#+        */
+/*                                                +#+#+#+#+#+   +#+           */
+/*   Created: 2025/12/17 17:43:14 by lundaevv          #+#    #+#             */
+/*   Updated: 2025/12/17 23:30:13 by lundaevv         ###   ########.fr       */
+/*                                                                            */
+/* ************************************************************************** */
+
+#include "minishell.h"
+
+int	is_redir_token(t_token_type type)
+{
+	return (type == TOKEN_REDIR_IN || type == TOKEN_REDIR_OUT
+		|| type == TOKEN_REDIR_APPEND || type == TOKEN_HEREDOC);
+}
+
+
+==================== src/parsing/syntax/parser_syntax.c ====================
+
+/* ************************************************************************** */
+/*                                                                            */
+/*                                                        :::      ::::::::   */
+/*   parser_syntax.c                                    :+:      :+:    :+:   */
+/*                                                    +:+ +:+         +:+     */
+/*   By: lundaevv <lundaevv@student.42.fr>          +#+  +:+       +#+        */
+/*                                                +#+#+#+#+#+   +#+           */
+/*   Created: 2025/12/17 20:36:12 by lundaevv          #+#    #+#             */
+/*   Updated: 2026/01/04 14:43:32 by lundaevv         ###   ########.fr       */
+/*                                                                            */
+/* ************************************************************************** */
+
+#include "minishell.h"
+
+static const char	*token_name(t_token *token)
+{
+	if (!token)
+		return ("newline");
+	if (token->type == TOKEN_PIPE)
+		return ("|");
+	if (token->type == TOKEN_REDIR_IN)
+		return ("<");
+	if (token->type == TOKEN_REDIR_OUT)
+		return (">");
+	if (token->type == TOKEN_REDIR_APPEND)
+		return (">>");
+	if (token->type == TOKEN_HEREDOC)
+		return ("<<");
+	return (token->value);
+}
+
+static int	syntax_error(t_token *near)
+{
+	ft_putstr_fd("minishell: syntax error near unexpected token `", 2);
+	ft_putstr_fd((char *)token_name(near), 2);
+	ft_putendl_fd("'", 2);
+	return (1);
+}
+
+static int	need_word_after_redir(t_token *token)
+{
+	if (!is_redir_token(token->type))
+		return (0);
+	if (!token->next || token->next->type != TOKEN_WORD)
+		return (1);
+	return (0);
+}
+
+int	validate_syntax(t_token *token)
+{
+	t_token	*prev;
+
+	if (!token)
+		return (0);
+	if (token->type == TOKEN_PIPE)
+		return (syntax_error(token));
+	prev = NULL;
+	while (token)
+	{
+		if (token->type == TOKEN_PIPE && (!prev || prev->type == TOKEN_PIPE))
+			return (syntax_error(token));
+		if (token->type == TOKEN_PIPE && prev && is_redir_token(prev->type))
+			return (syntax_error(token));
+		if (need_word_after_redir(token))
+			return (syntax_error(token->next));
+		prev = token;
+		token = token->next;
+	}
+	if (prev && prev->type == TOKEN_PIPE)
+		return (syntax_error(NULL));
+	return (0);
+}

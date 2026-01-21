@@ -3,10 +3,10 @@
 #                                                         :::      ::::::::    #
 #    Makefile                                           :+:      :+:    :+:    #
 #                                                     +:+ +:+         +:+      #
-#    By: lundaevv <lundaevv@student.42.fr>          +#+  +:+       +#+         #
+#    By: vlundaev <vlundaev@student.hive.fi>        +#+  +:+       +#+         #
 #                                                 +#+#+#+#+#+   +#+            #
-#    Created: 2025/10/08 11:55:51 by vlundaev          #+#    #+#              #
-#    Updated: 2026/01/19 15:49:25 by lundaevv         ###   ########.fr        #
+#    Created: 2026/01/21 14:40:59 by lundaevv          #+#    #+#              #
+#    Updated: 2026/01/21 15:18:21 by vlundaev         ###   ########.fr        #
 #                                                                              #
 # **************************************************************************** #
 
@@ -39,7 +39,7 @@ ifeq ($(UNAME_S),Darwin)
 	RL_LIB = -L /opt/homebrew/opt/readline/lib -lreadline
 else
 	RL_INC =
-	RL_LIB = -lreadline
+	RL_LIB = -lreadline -lncurses
 endif
 
 # -------------------------------- Sources ----------------------------------- #
@@ -74,13 +74,37 @@ SRC = \
 	parsing/parser/redir/parser_redir_utils.c \
 	parsing/parser/redir/parser_redir_map.c \
 	parsing/parser/redir/parser_redir_build.c \
-	parsing/debug/debug.c
+	exec/exec_pipeline.c \
+	exec/exec_pipeline_single.c \
+	exec/exec_pipeline_multi.c \
+	exec/exec_stdio.c \
+	exec/exec_wait.c \
+	exec/exec_cmd.c \
+	exec/path_resolve.c \
+	exec/exec_utils.c \
+	exec/exec_signals.c \
+	exec/exec_redirs.c \
+	exec/exec_child.c \
+	exec/exec_heredoc.c \
+	builtin/builtin.c \
+	builtin/builtin_echo.c \
+	builtin/builtin_cd.c \
+	builtin/builtin_pwd_env.c \
+	builtin/builtin_export_unset.c \
+	builtin/builtin_exit.c \
+	builtin/exit_atoll.c \
+	builtin/exit_num_utils.c \
+	env/env.c \
+	env/env_utils.c
 
 SRCS = $(addprefix $(SRC_PATH)/, $(SRC))
 OBJS = $(addprefix $(OBJ_PATH)/, $(SRC:.c=.o))
 
 HDRS = \
 	$(INC_PATH)/minishell.h \
+	$(INC_PATH)/parsing.h \
+	$(INC_PATH)/execution.h \
+	$(INC_PATH)/ms_errors.h \
 	$(LIBFT_DIR)/includes/libft.h \
 	$(LIBFT_DIR)/includes/ft_printf.h \
 	$(LIBFT_DIR)/includes/get_next_line.h
@@ -94,8 +118,6 @@ $(NAME): $(OBJS) $(LIBFT_A)
 	@$(CC) $(CFLAGS) $(OBJS) -L $(LIBFT_DIR) -lft $(RL_LIB) -o $(NAME)
 	@echo "[OK] built -> $(NAME)"
 
-# libft
-
 $(LIBFT_A):
 	@$(MAKE) -C $(LIBFT_DIR)
 
@@ -105,22 +127,16 @@ libft:
 relibft:
 	@$(MAKE) -C $(LIBFT_DIR) re
 
-# compilation rule (AUTO mkdir)
-
 $(OBJ_PATH)/%.o: $(SRC_PATH)/%.c $(HDRS)
 	@mkdir -p $(@D)
 	@echo "[CC] $<"
 	@$(CC) $(CFLAGS) $(INCS) $(RL_INC) -c $< -o $@
 
-# cleaning
-
 clean:
-	@echo "[CLEAN] objects"
 	@rm -rf $(OBJ_PATH)
 	@$(MAKE) -C $(LIBFT_DIR) clean
 
 fclean: clean
-	@echo "[FCLEAN] $(NAME)"
 	@rm -f $(NAME)
 	@$(MAKE) -C $(LIBFT_DIR) fclean
 

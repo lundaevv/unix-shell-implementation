@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   parsing.h                                          :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: lundaevv <lundaevv@student.42.fr>          +#+  +:+       +#+        */
+/*   By: vlundaev <vlundaev@student.hive.fi>        +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/12/17 21:44:33 by lundaevv          #+#    #+#             */
-/*   Updated: 2026/01/20 15:48:21 by lundaevv         ###   ########.fr       */
+/*   Updated: 2026/01/21 15:47:14 by vlundaev         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -238,14 +238,5 @@ int						is_redir_token(t_token_type type);
 int						count_redirs_simple(t_token *tokens);
 int						token_to_redir_type(t_token_type t, t_redir_type *out);
 t_redir					*build_redirs_simple(t_token *tokens, int *out_count);
-
-/* =============================== DEBUG ==================================== */
-/*
-** ВАЖНО:
-** parsing.h не знает о t_shell.
-** Debug, который печатает shell, объявляется в minishell.h.
-*/
-void					ms_debug_counts(t_token *tokens);
-void					ms_debug_pipeline(const t_pipeline *p);
 
 #endif
