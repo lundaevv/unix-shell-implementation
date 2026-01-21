@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   execution.h                                        :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: vlundaev <vlundaev@student.hive.fi>        +#+  +:+       +#+        */
+/*   By: gperedny <gperedny@student.hive.fi>        +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/01/21 15:18:42 by vlundaev          #+#    #+#             */
-/*   Updated: 2026/01/21 16:45:56 by vlundaev         ###   ########.fr       */
+/*   Updated: 2026/01/21 22:52:54 by gperedny         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -26,6 +26,7 @@ extern volatile sig_atomic_t	g_signal;
 void							signals_interactive(void);
 void							signals_parent_exec(void);
 void							signals_child_exec(void);
+void							signals_heredoc(void);
 
 /* execution */
 int								exec_pipeline(t_shell *sh, t_pipeline *p);
@@ -74,6 +75,8 @@ int								ms_is_strict_number(const char *s);
 int								ms_atoll_checked(const char *s, long long *out);
 int								ms_is_digit(char c);
 int								ms_is_space(char c);
+int								ms_is_valid_ident(const char *s);
+void							ms_err_ident(const char *cmd, const char *arg);
 
 /* env helpers */
 char							**env_copy(char **envp);

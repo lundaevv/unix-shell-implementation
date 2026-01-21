@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   exec_heredoc.c                                     :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: vlundaev <vlundaev@student.hive.fi>        +#+  +:+       +#+        */
+/*   By: gperedny <gperedny@student.hive.fi>        +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/01/21 16:07:04 by vlundaev          #+#    #+#             */
-/*   Updated: 2026/01/21 16:38:10 by vlundaev         ###   ########.fr       */
+/*   Updated: 2026/01/21 22:59:29 by gperedny         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -22,7 +22,13 @@ static char	*hd_read_line(void)
 	while (1)
 	{
 		r = read(STDIN_FILENO, &c, 1);
-		if (r <= 0)
+		if (r < 0)
+		{
+			if (errno == EINTR)
+				g_signal = SIGINT;
+			break ;
+		}
+		if (r == 0)
 			break ;
 		line = hd_str_add_char(line, c);
 		if (!line)
@@ -32,6 +38,7 @@ static char	*hd_read_line(void)
 	}
 	return (line);
 }
+
 
 static int	hd_is_limiter(char *line, const char *limiter)
 {
@@ -63,10 +70,14 @@ static int	hd_fill(int wfd, t_shell *sh, const char *lim, int expand)
 	{
 		if (g_signal == SIGINT)
 			return (130);
-		write(STDERR_FILENO, "> ", 2);
+		write(STDOUT_FILENO, "> ", 2);
 		line = hd_read_line();
 		if (!line)
+		{
+			if (g_signal == SIGINT)
+				return (130);
 			break ;
+		}
 		if (g_signal == SIGINT)
 			return (free(line), 130);
 		if (hd_is_limiter(line, lim))
@@ -86,6 +97,7 @@ int	heredoc_open(t_shell *sh, const char *limiter, int expand)
 
 	if (pipe(hd) < 0)
 		return (perror("pipe"), -1);
+	signals_heredoc();
 	g_signal = 0;
 	ret = hd_fill(hd[1], sh, limiter, expand);
 	close(hd[1]);

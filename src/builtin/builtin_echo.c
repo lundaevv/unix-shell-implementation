@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   builtin_echo.c                                     :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: vlundaev <vlundaev@student.hive.fi>        +#+  +:+       +#+        */
+/*   By: gperedny <gperedny@student.hive.fi>        +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/01/21 16:05:38 by vlundaev          #+#    #+#             */
-/*   Updated: 2026/01/21 16:05:39 by vlundaev         ###   ########.fr       */
+/*   Updated: 2026/01/21 20:33:08 by gperedny         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -14,9 +14,14 @@
 
 static int	is_echo_n(const char *s)
 {
-	if (!s)
+	int	i;
+
+	if (!s || s[0] != '-' || s[1] != 'n')
 		return (0);
-	return (ft_strncmp(s, "-n", 3) == 0);
+	i = 2;
+	while (s[i] == 'n')
+		i++;
+	return (s[i] == '\0');
 }
 
 int	bi_echo(t_cmd *cmd)
@@ -24,14 +29,14 @@ int	bi_echo(t_cmd *cmd)
 	int	i;
 	int	newline;
 
-	i = 1;
-	newline = 1;
 	if (!cmd || !cmd->argv)
 		return (0);
-	if (is_echo_n(cmd->argv[1]))
+	i = 1;
+	newline = 1;
+	while (cmd->argv[i] && is_echo_n(cmd->argv[i]))
 	{
 		newline = 0;
-		i = 2;
+		i++;
 	}
 	while (cmd->argv[i])
 	{

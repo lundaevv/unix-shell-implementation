@@ -3,10 +3,10 @@
 #                                                         :::      ::::::::    #
 #    Makefile                                           :+:      :+:    :+:    #
 #                                                     +:+ +:+         +:+      #
-#    By: vlundaev <vlundaev@student.hive.fi>        +#+  +:+       +#+         #
+#    By: gperedny <gperedny@student.hive.fi>        +#+  +:+       +#+         #
 #                                                 +#+#+#+#+#+   +#+            #
 #    Created: 2026/01/21 14:40:59 by lundaevv          #+#    #+#              #
-#    Updated: 2026/01/21 15:18:21 by vlundaev         ###   ########.fr        #
+#    Updated: 2026/01/21 22:53:20 by gperedny         ###   ########.fr        #
 #                                                                              #
 # **************************************************************************** #
 
@@ -83,6 +83,7 @@ SRC = \
 	exec/path_resolve.c \
 	exec/exec_utils.c \
 	exec/exec_signals.c \
+	exec/exec_signals_heredoc.c \
 	exec/exec_redirs.c \
 	exec/exec_redirs_apply.c \
 	exec/exec_child.c \
@@ -96,9 +97,11 @@ SRC = \
 	builtin/builtin_exit.c \
 	builtin/exit_atoll.c \
 	builtin/exit_num_utils.c \
+	builtin/builtin_ident.c\
 	env/env.c \
 	env/env_utils.c \
 	env/env_append.c \
+	env/env_export_print.c \
 
 SRCS = $(addprefix $(SRC_PATH)/, $(SRC))
 OBJS = $(addprefix $(OBJ_PATH)/, $(SRC:.c=.o))
