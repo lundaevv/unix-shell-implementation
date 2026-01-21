@@ -1,6 +1,6 @@
 # Minishell (42 Project)
 
-This project is part of the 42 curriculum and aims to recreate a simple shell — a minimal version of Bash — capable of interpreting and executing user commands.
+This project is part of the 42 curriculum and aims to recreate a simple shell (a minimal version of Bash), which is capable of interpreting and executing user commands.
 
 ## 🧠 Project Overview
 
