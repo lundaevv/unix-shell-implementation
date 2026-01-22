@@ -6,7 +6,7 @@
 /*   By: gperedny <gperedny@student.hive.fi>        +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/01/21 16:08:03 by vlundaev          #+#    #+#             */
-/*   Updated: 2026/01/22 15:31:24 by gperedny         ###   ########.fr       */
+/*   Updated: 2026/01/22 15:51:51 by gperedny         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -50,7 +50,7 @@ int	exec_pipeline_single(t_shell *sh, t_cmd *cmd)
 	pid_t	pid;
 	int		status;
 
-	if(ms_cmd_is_empty(cmd))
+	if (ms_cmd_is_empty(cmd))
 		return (sh->exit_status = 0);
 	if (cmd->argv && cmd->argv[0] && is_parent_builtin(cmd->argv[0]))
 		return (run_parent_builtin(sh, cmd));

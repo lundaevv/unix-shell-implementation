@@ -6,7 +6,7 @@
 /*   By: gperedny <gperedny@student.hive.fi>        +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/01/21 15:18:42 by vlundaev          #+#    #+#             */
-/*   Updated: 2026/01/22 15:00:26 by gperedny         ###   ########.fr       */
+/*   Updated: 2026/01/22 15:49:40 by gperedny         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -33,6 +33,8 @@ void							signals_heredoc(void);
 int								exec_pipeline(t_shell *sh, t_pipeline *p);
 int								exec_pipeline_single(t_shell *sh, t_cmd *cmd);
 int								exec_pipeline_multi(t_shell *sh, t_pipeline *p);
+void							ms_close_all_pipes(int pipes[][2], int n);
+int								ms_make_pipes(int pipes[][2], int n);
 int								ms_wait_last(pid_t *pids, int n);
 int								ms_status_to_exit(int status);
 int								ms_stdio_save(int *in, int *out);

@@ -6,7 +6,7 @@
 /*   By: gperedny <gperedny@student.hive.fi>        +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/01/21 16:07:47 by vlundaev          #+#    #+#             */
-/*   Updated: 2026/01/22 15:36:23 by gperedny         ###   ########.fr       */
+/*   Updated: 2026/01/22 15:51:13 by gperedny         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -56,7 +56,7 @@ void	child_run_pipeline_cmd(t_shell *sh, t_pipeline *p, int i,
 
 	signals_child_exec();
 	cmd = &p->cmds[i];
-	if(ms_cmd_is_empty(cmd))
+	if (ms_cmd_is_empty(cmd))
 		exit(0);
 	connect_pipes(p, i, pipes);
 	close_pipes(p, pipes);

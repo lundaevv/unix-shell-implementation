@@ -1,24 +1,40 @@
 /* ************************************************************************** */
 /*                                                                            */
 /*                                                        :::      ::::::::   */
-/*   exec_pipeline.c                                    :+:      :+:    :+:   */
+/*   exec_pipes.c                                       :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
 /*   By: gperedny <gperedny@student.hive.fi>        +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
-/*   Created: 2026/01/21 14:06:52 by lundaevv          #+#    #+#             */
-/*   Updated: 2026/01/22 15:51:26 by gperedny         ###   ########.fr       */
+/*   Created: 2026/01/22 15:48:12 by gperedny          #+#    #+#             */
+/*   Updated: 2026/01/22 15:49:03 by gperedny         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "minishell.h"
 
-int	exec_pipeline(t_shell *sh, t_pipeline *p)
+void	ms_close_all_pipes(int pipes[][2], int n)
 {
-	if (!p || p->cmd_count <= 0)
-		return (sh->exit_status = 0);
-	if (p->cmd_count == 1 && ms_cmd_is_empty(&p->cmds[0]))
-		return (sh->exit_status = 0);
-	if (p->cmd_count == 1)
-		return (exec_pipeline_single(sh, &p->cmds[0]));
-	return (exec_pipeline_multi(sh, p));
+	int	i;
+
+	i = 0;
+	while (i < n)
+	{
+		close(pipes[i][0]);
+		close(pipes[i][1]);
+		i++;
+	}
+}
+
+int	ms_make_pipes(int pipes[][2], int n)
+{
+	int	i;
+
+	i = 0;
+	while (i < n)
+	{
+		if (pipe(pipes[i]) < 0)
+			return (perror("pipe"), 1);
+		i++;
+	}
+	return (0);
 }

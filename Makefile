@@ -6,7 +6,7 @@
 #    By: gperedny <gperedny@student.hive.fi>        +#+  +:+       +#+         #
 #                                                 +#+#+#+#+#+   +#+            #
 #    Created: 2026/01/21 14:40:59 by lundaevv          #+#    #+#              #
-#    Updated: 2026/01/22 14:50:39 by gperedny         ###   ########.fr        #
+#    Updated: 2026/01/22 15:50:18 by gperedny         ###   ########.fr        #
 #                                                                              #
 # **************************************************************************** #
 
@@ -77,6 +77,7 @@ SRC = \
 	exec/exec_pipeline.c \
 	exec/exec_pipeline_single.c \
 	exec/exec_pipeline_multi.c \
+	exec/exec_pipes.c\
 	exec/exec_stdio.c \
 	exec/exec_wait.c \
 	exec/exec_cmd.c \

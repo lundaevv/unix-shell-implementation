@@ -6,7 +6,7 @@
 /*   By: gperedny <gperedny@student.hive.fi>        +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/01/21 16:05:52 by vlundaev          #+#    #+#             */
-/*   Updated: 2026/01/22 15:33:39 by gperedny         ###   ########.fr       */
+/*   Updated: 2026/01/22 15:52:25 by gperedny         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -65,8 +65,8 @@ int	run_builtin(t_shell *sh, t_cmd *cmd)
 {
 	const char	*name;
 
-	if(ms_cmd_is_empty(cmd))
-		return(sh->exit_status = 0);
+	if (ms_cmd_is_empty(cmd))
+		return (sh->exit_status = 0);
 	if (!cmd || !cmd->argv || !cmd->argv[0])
 		return (1);
 	name = cmd->argv[0];
