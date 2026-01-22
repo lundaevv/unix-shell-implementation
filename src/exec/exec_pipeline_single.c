@@ -6,7 +6,7 @@
 /*   By: gperedny <gperedny@student.hive.fi>        +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/01/21 16:08:03 by vlundaev          #+#    #+#             */
-/*   Updated: 2026/01/22 18:40:53 by gperedny         ###   ########.fr       */
+/*   Updated: 2026/01/22 19:39:53 by gperedny         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -44,7 +44,6 @@ static void	child_exec(t_shell *sh, t_cmd *cmd)
 	exec_cmd(cmd, sh->envp);
 	exit(127);
 }
-
 
 int	exec_pipeline_single(t_shell *sh, t_cmd *cmd)
 {
