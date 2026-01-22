@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   exec_pipeline_single.c                             :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: gperedny <gperedny@student.hive.fi>        +#+  +:+       +#+        */
+/*   By: vlundaev <vlundaev@student.hive.fi>        +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/01/21 16:08:03 by vlundaev          #+#    #+#             */
-/*   Updated: 2026/01/22 15:51:51 by gperedny         ###   ########.fr       */
+/*   Updated: 2026/01/22 19:45:38 by vlundaev         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -22,6 +22,9 @@ static int	run_parent_builtin(t_shell *sh, t_cmd *cmd)
 		write(1, "exit\n", 5);
 	if (ms_stdio_save(&in, &out))
 		return (sh->exit_status = 1);
+	r = prepare_heredocs(sh, cmd);
+	if (r != 0)
+		return (sh->exit_status = r);
 	r = apply_redirections(sh, cmd);
 	if (r == 0)
 		r = run_builtin(sh, cmd);
@@ -29,16 +32,16 @@ static int	run_parent_builtin(t_shell *sh, t_cmd *cmd)
 	return (sh->exit_status = r);
 }
 
-static int	child_exec(t_shell *sh, t_cmd *cmd)
+static void	child_exec(t_shell *sh, t_cmd *cmd)
 {
 	int	r;
 
 	signals_child_exec();
 	r = apply_redirections(sh, cmd);
 	if (r != 0)
-		return (sh->exit_status = r);
+		exit(r);
 	if (ms_cmd_is_empty(cmd))
-		return (sh->exit_status = 0);
+		exit(0);
 	if (cmd->argv && cmd->argv[0] && is_builtin(cmd->argv[0]))
 		exit(run_builtin(sh, cmd));
 	exec_cmd(cmd, sh->envp);
@@ -49,11 +52,15 @@ int	exec_pipeline_single(t_shell *sh, t_cmd *cmd)
 {
 	pid_t	pid;
 	int		status;
+	int		r;
 
 	if (ms_cmd_is_empty(cmd))
 		return (sh->exit_status = 0);
 	if (cmd->argv && cmd->argv[0] && is_parent_builtin(cmd->argv[0]))
 		return (run_parent_builtin(sh, cmd));
+	r = prepare_heredocs(sh, cmd);
+	if (r != 0)
+		return (sh->exit_status = r);
 	signals_parent_exec();
 	pid = fork();
 	if (pid < 0)

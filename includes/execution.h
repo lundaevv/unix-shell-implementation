@@ -6,7 +6,7 @@
 /*   By: vlundaev <vlundaev@student.hive.fi>        +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/01/21 15:18:42 by vlundaev          #+#    #+#             */
-/*   Updated: 2026/01/22 16:20:34 by vlundaev         ###   ########.fr       */
+/*   Updated: 2026/01/22 18:54:34 by vlundaev         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -54,6 +54,7 @@ int								heredoc_open(t_shell *sh, const char *limiter,
 									int expander);
 char							*hd_str_add_char(char *s, char c);
 int								hd_write_line(int wfd, char *line);
+int								prepare_heredocs(t_shell *sh, t_cmd *cmd);
 
 /* pipes */
 void							child_run_pipeline_cmd(t_shell *sh,

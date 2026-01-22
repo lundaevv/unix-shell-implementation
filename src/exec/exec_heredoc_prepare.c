@@ -1,30 +1,37 @@
 /* ************************************************************************** */
 /*                                                                            */
 /*                                                        :::      ::::::::   */
-/*   exec_redirs.c                                      :+:      :+:    :+:   */
+/*   exec_heredoc_prepare.c                             :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: gperedny <gperedny@student.hive.fi>        +#+  +:+       +#+        */
+/*   By: vlundaev <vlundaev@student.hive.fi>        +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
-/*   Created: 2026/01/21 16:07:34 by vlundaev          #+#    #+#             */
-/*   Updated: 2026/01/22 19:24:52 by gperedny         ###   ########.fr       */
+/*   Created: 2026/01/22 18:52:45 by vlundaev          #+#    #+#             */
+/*   Updated: 2026/01/22 18:54:11 by vlundaev         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "minishell.h"
 
-int	apply_redirections(t_shell *sh, t_cmd *cmd)
+int	prepare_heredocs(t_shell *sh, t_cmd *cmd)
 {
 	int	i;
-	int	r;
+	int	fd;
 
 	if (!cmd || cmd->redir_count <= 0 || !cmd->redirs)
 		return (0);
 	i = 0;
 	while (i < cmd->redir_count)
 	{
-		r = apply_one_redir(sh, &cmd->redirs[i]);
-		if (r != 0)
-			return (r);
+		if (cmd->redirs[i].type == REDIR_HEREDOC)
+		{
+			fd = heredoc_open(sh, cmd->redirs[i].target,
+					cmd->redirs[i].heredoc_expand);
+			if (fd == -130)
+				return (130);
+			if (fd < 0)
+				return (1);
+			cmd->redirs[i].hd_fd = fd;
+		}
 		i++;
 	}
 	return (0);

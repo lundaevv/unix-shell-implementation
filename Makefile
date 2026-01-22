@@ -3,10 +3,10 @@
 #                                                         :::      ::::::::    #
 #    Makefile                                           :+:      :+:    :+:    #
 #                                                     +:+ +:+         +:+      #
-#    By: gperedny <gperedny@student.hive.fi>        +#+  +:+       +#+         #
+#    By: vlundaev <vlundaev@student.hive.fi>        +#+  +:+       +#+         #
 #                                                 +#+#+#+#+#+   +#+            #
 #    Created: 2026/01/21 14:40:59 by lundaevv          #+#    #+#              #
-#    Updated: 2026/01/22 15:50:18 by gperedny         ###   ########.fr        #
+#    Updated: 2026/01/22 19:31:35 by vlundaev         ###   ########.fr        #
 #                                                                              #
 # **************************************************************************** #
 
@@ -71,6 +71,7 @@ SRC = \
 	parsing/parser/argv/parser_argv_count.c \
 	parsing/parser/argv/parser_argv_utils.c \
 	parsing/parser/redir/parser_redir_count.c \
+	parsing/parser/redir/parser_redir_init.c \
 	parsing/parser/redir/parser_redir_utils.c \
 	parsing/parser/redir/parser_redir_map.c \
 	parsing/parser/redir/parser_redir_build.c \
@@ -91,6 +92,7 @@ SRC = \
 	exec/exec_child.c \
 	exec/exec_heredoc.c \
 	exec/exec_heredoc_utils.c \
+	exec/exec_heredoc_prepare.c \
 	builtin/builtin.c \
 	builtin/builtin_echo.c \
 	builtin/builtin_cd.c \

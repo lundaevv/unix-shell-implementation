@@ -6,7 +6,7 @@
 /*   By: vlundaev <vlundaev@student.hive.fi>        +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/12/17 18:46:26 by lundaevv          #+#    #+#             */
-/*   Updated: 2026/01/21 16:50:18 by vlundaev         ###   ########.fr       */
+/*   Updated: 2026/01/22 19:28:44 by vlundaev         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -88,6 +88,7 @@ t_redir	*build_redirs_simple(t_token *tokens, int *out_count)
 		*out_count = 0;
 		return (NULL);
 	}
+	init_redirs(r, count);
 	if (fill_redirs_simple(r, tokens) != 0)
 	{
 		*out_count = 0;

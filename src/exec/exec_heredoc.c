@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   exec_heredoc.c                                     :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: vlundaev <vlundaev@student.hive.fi>        +#+  +:+       +#+        */
+/*   By: gperedny <gperedny@student.hive.fi>        +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/01/21 16:07:04 by vlundaev          #+#    #+#             */
-/*   Updated: 2026/01/22 15:46:58 by vlundaev         ###   ########.fr       */
+/*   Updated: 2026/01/22 19:25:38 by gperedny         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 

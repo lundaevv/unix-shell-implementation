@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   builtin_exit.c                                     :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: vlundaev <vlundaev@student.hive.fi>        +#+  +:+       +#+        */
+/*   By: gperedny <gperedny@student.hive.fi>        +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/01/21 16:05:42 by vlundaev          #+#    #+#             */
-/*   Updated: 2026/01/21 16:05:43 by vlundaev         ###   ########.fr       */
+/*   Updated: 2026/01/22 19:07:11 by gperedny         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -39,7 +39,8 @@ int	bi_exit(t_shell *sh, t_cmd *cmd)
 	{
 		print_num_required(cmd->argv[1]);
 		sh->should_exit = 1;
-		return (255);
+		sh->exit_status = 2;
+		return (2);
 	}
 	if (cmd->argv[2])
 	{

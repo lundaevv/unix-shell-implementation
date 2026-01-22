@@ -6,7 +6,7 @@
 /*   By: vlundaev <vlundaev@student.hive.fi>        +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/12/17 21:44:33 by lundaevv          #+#    #+#             */
-/*   Updated: 2026/01/22 16:20:48 by vlundaev         ###   ########.fr       */
+/*   Updated: 2026/01/22 19:29:58 by vlundaev         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -154,6 +154,7 @@ typedef struct s_redir
 	t_redir_type		type;
 	char				*target;
 	bool				heredoc_expand;
+	int					hd_fd;
 }						t_redir;
 
 typedef struct s_cmd
@@ -235,5 +236,6 @@ int						is_redir_token(t_token_type type);
 int						count_redirs_simple(t_token *tokens);
 int						token_to_redir_type(t_token_type t, t_redir_type *out);
 t_redir					*build_redirs_simple(t_token *tokens, int *out_count);
+void					init_redirs(t_redir *r, int count);
 
 #endif

@@ -6,7 +6,7 @@
 /*   By: vlundaev <vlundaev@student.hive.fi>        +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/01/21 16:29:55 by vlundaev          #+#    #+#             */
-/*   Updated: 2026/01/21 16:32:55 by vlundaev         ###   ########.fr       */
+/*   Updated: 2026/01/22 19:45:52 by vlundaev         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -52,14 +52,10 @@ static int	apply_file_out(t_redir *r, int append)
 
 static int	apply_heredoc(t_shell *sh, t_redir *r)
 {
-	int	fd;
-
-	fd = heredoc_open(sh, r->target, r->heredoc_expand);
-	if (fd == -130)
-		return (130);
-	if (fd < 0)
+	(void)sh;
+	if (r->hd_fd < 0)
 		return (1);
-	return (dup2_and_close(fd, STDIN_FILENO));
+	return (dup2_and_close(r->hd_fd, STDIN_FILENO));
 }
 
 int	apply_one_redir(t_shell *sh, t_redir *r)

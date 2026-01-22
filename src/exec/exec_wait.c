@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   exec_wait.c                                        :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: vlundaev <vlundaev@student.hive.fi>        +#+  +:+       +#+        */
+/*   By: gperedny <gperedny@student.hive.fi>        +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/01/21 16:08:28 by vlundaev          #+#    #+#             */
-/*   Updated: 2026/01/21 16:08:29 by vlundaev         ###   ########.fr       */
+/*   Updated: 2026/01/22 17:25:42 by gperedny         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -27,11 +27,12 @@ int	ms_wait_last(pid_t *pids, int n)
 	int	status;
 	int	last;
 
-	last = 1;
+	last = 0;
 	i = 0;
 	while (i < n)
 	{
-		waitpid(pids[i], &status, 0);
+		if (waitpid(pids[i], &status, 0) < 0)
+			last = 1;
 		if (i == n - 1)
 			last = ms_status_to_exit(status);
 		i++;
