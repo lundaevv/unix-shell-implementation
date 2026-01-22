@@ -3,20 +3,15 @@
 /*                                                        :::      ::::::::   */
 /*   execution.h                                        :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: gperedny <gperedny@student.hive.fi>        +#+  +:+       +#+        */
+/*   By: vlundaev <vlundaev@student.hive.fi>        +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/01/21 15:18:42 by vlundaev          #+#    #+#             */
-/*   Updated: 2026/01/22 15:49:40 by gperedny         ###   ########.fr       */
+/*   Updated: 2026/01/22 16:20:34 by vlundaev         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #ifndef EXECUTION_H
 # define EXECUTION_H
-
-# include "parsing.h"
-# include <signal.h>
-# include <sys/types.h>
-# include <sys/stat.h>
 
 typedef struct s_shell			t_shell;
 

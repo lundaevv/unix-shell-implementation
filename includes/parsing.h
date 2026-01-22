@@ -6,15 +6,12 @@
 /*   By: vlundaev <vlundaev@student.hive.fi>        +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/12/17 21:44:33 by lundaevv          #+#    #+#             */
-/*   Updated: 2026/01/21 15:47:14 by vlundaev         ###   ########.fr       */
+/*   Updated: 2026/01/22 16:20:48 by vlundaev         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #ifndef PARSING_H
 # define PARSING_H
-
-# include <stdbool.h>
-# include <stdlib.h>
 
 /*
 ** ============================================================================

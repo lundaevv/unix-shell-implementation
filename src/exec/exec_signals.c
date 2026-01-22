@@ -6,12 +6,11 @@
 /*   By: vlundaev <vlundaev@student.hive.fi>        +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/01/21 16:07:19 by vlundaev          #+#    #+#             */
-/*   Updated: 2026/01/21 16:08:15 by vlundaev         ###   ########.fr       */
+/*   Updated: 2026/01/22 16:18:39 by vlundaev         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "minishell.h"
-#include <readline/readline.h>
 
 volatile sig_atomic_t	g_signal = 0;
 

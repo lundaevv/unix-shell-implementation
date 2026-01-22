@@ -6,7 +6,7 @@
 /*   By: vlundaev <vlundaev@student.hive.fi>        +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/01/21 14:26:56 by lundaevv          #+#    #+#             */
-/*   Updated: 2026/01/21 15:46:02 by vlundaev         ###   ########.fr       */
+/*   Updated: 2026/01/22 16:20:43 by vlundaev         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -24,6 +24,9 @@
 # include <fcntl.h>
 # include <sys/wait.h>
 # include <limits.h>
+
+# include <sys/types.h>
+# include <sys/stat.h>
 
 /* ------------------------------- Readline --------------------------------- */
 
