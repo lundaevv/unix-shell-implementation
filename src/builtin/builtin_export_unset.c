@@ -6,7 +6,7 @@
 /*   By: gperedny <gperedny@student.hive.fi>        +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/01/21 16:05:46 by vlundaev          #+#    #+#             */
-/*   Updated: 2026/01/21 22:43:22 by gperedny         ###   ########.fr       */
+/*   Updated: 2026/01/23 13:12:26 by gperedny         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -20,7 +20,7 @@ static int	export_one(t_shell *sh, char *arg)
 
 	eq = ft_strchr(arg, '=');
 	if (!eq)
-		return (env_set(sh, arg, ""));
+		return (env_export_only(sh, arg));
 	name = ft_substr(arg, 0, (size_t)(eq - arg));
 	if (!name)
 		return (1);

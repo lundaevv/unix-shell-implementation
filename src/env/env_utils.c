@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   env_utils.c                                        :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: vlundaev <vlundaev@student.hive.fi>        +#+  +:+       +#+        */
+/*   By: gperedny <gperedny@student.hive.fi>        +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/01/21 16:09:02 by vlundaev          #+#    #+#             */
-/*   Updated: 2026/01/21 16:17:22 by vlundaev         ###   ########.fr       */
+/*   Updated: 2026/01/23 13:13:29 by gperedny         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -22,23 +22,23 @@ static int	env_count(char **envp)
 	return (i);
 }
 
-static int	env_find_index(char **envp, const char *name)
-{
-	size_t	n;
-	int		i;
+//static int	env_find_index(char **envp, const char *name)
+//{
+//	size_t	n;
+//	int		i;
 
-	if (!envp || !name)
-		return (-1);
-	n = ft_strlen(name);
-	i = 0;
-	while (envp[i])
-	{
-		if (ft_strncmp(envp[i], name, n) == 0 && envp[i][n] == '=')
-			return (i);
-		i++;
-	}
-	return (-1);
-}
+//	if (!envp || !name)
+//		return (-1);
+//	n = ft_strlen(name);
+//	i = 0;
+//	while (envp[i])
+//	{
+//		if (ft_strncmp(envp[i], name, n) == 0 && envp[i][n] == '=')
+//			return (i);
+//		i++;
+//	}
+//	return (-1);
+//}
 
 static char	*make_kv(const char *name, const char *value)
 {
@@ -63,7 +63,7 @@ int	env_unset(t_shell *sh, const char *name)
 
 	if (!sh || !sh->envp || !name || !*name)
 		return (0);
-	idx = env_find_index(sh->envp, name);
+	idx = env_find_index_any(sh->envp, name);
 	if (idx < 0)
 		return (0);
 	count = env_count(sh->envp);
@@ -86,7 +86,7 @@ int	env_set(t_shell *sh, const char *name, const char *value)
 	kv = make_kv(name, value);
 	if (!kv)
 		return (1);
-	idx = env_find_index(sh->envp, name);
+	idx = env_find_index_any(sh->envp, name);
 	if (idx >= 0)
 	{
 		free(sh->envp[idx]);

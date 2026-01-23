@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   execution.h                                        :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: vlundaev <vlundaev@student.hive.fi>        +#+  +:+       +#+        */
+/*   By: gperedny <gperedny@student.hive.fi>        +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/01/21 15:18:42 by vlundaev          #+#    #+#             */
-/*   Updated: 2026/01/22 16:20:34 by vlundaev         ###   ########.fr       */
+/*   Updated: 2026/01/23 13:20:59 by gperedny         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -69,6 +69,10 @@ int								bi_pwd(void);
 int								bi_env(t_shell *sh);
 int								bi_cd(t_shell *sh, t_cmd *cmd);
 int								bi_export(t_shell *sh, t_cmd *cmd);
+int								env_export_only(t_shell *sh,
+									const char *name);
+int								env_find_index_any(char **envp,
+									const char *name);
 int								bi_unset(t_shell *sh, t_cmd *cmd);
 int								bi_exit(t_shell *sh, t_cmd *cmd);
 

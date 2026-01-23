@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   path_resolve.c                                     :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: vlundaev <vlundaev@student.hive.fi>        +#+  +:+       +#+        */
+/*   By: gperedny <gperedny@student.hive.fi>        +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/01/21 16:08:32 by vlundaev          #+#    #+#             */
-/*   Updated: 2026/01/21 16:26:30 by vlundaev         ###   ########.fr       */
+/*   Updated: 2026/01/22 20:28:00 by gperedny         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 

@@ -6,7 +6,7 @@
 #    By: gperedny <gperedny@student.hive.fi>        +#+  +:+       +#+         #
 #                                                 +#+#+#+#+#+   +#+            #
 #    Created: 2026/01/21 14:40:59 by lundaevv          #+#    #+#              #
-#    Updated: 2026/01/22 15:50:18 by gperedny         ###   ########.fr        #
+#    Updated: 2026/01/23 13:12:57 by gperedny         ###   ########.fr        #
 #                                                                              #
 # **************************************************************************** #
 
@@ -104,6 +104,7 @@ SRC = \
 	env/env_utils.c \
 	env/env_append.c \
 	env/env_export_print.c \
+	env/env_export_only.c\
 
 SRCS = $(addprefix $(SRC_PATH)/, $(SRC))
 OBJS = $(addprefix $(OBJ_PATH)/, $(SRC:.c=.o))
