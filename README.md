@@ -1,4 +1,4 @@
-# Minishell
+# Minishell — Bash-like Shell Implementation
 
 A Unix shell implementation in C with parsing, pipes, redirections, and built-in commands.
 
